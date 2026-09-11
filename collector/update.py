@@ -21,6 +21,7 @@ import pathlib
 import sys
 
 from fetch_anbima import NoDataForDate, fetch_ettj
+from import_b3_manual import run_and_rebuild as run_b3_manual
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RAW_DIR = ROOT / "docs" / "data" / "raw"
@@ -157,6 +158,10 @@ def main() -> int:
     print(f"novos: {saved} | ignorados: {skipped} | total arquivado: {total}")
     if total == 0:
         print("AVISO: nenhuma curva arquivada -- verifique o parse em fetch_anbima.py")
+
+    print("== importando B3 manual (b3-manual-inbox/) ==")
+    b3_novos, b3_total = run_b3_manual()
+    print(f"B3 manual: {b3_novos} novos | {b3_total} arquivados no total")
     return 0
 
 

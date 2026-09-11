@@ -62,7 +62,7 @@
   .ctl-label{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
     color:var(--muted)}
 
-  input[type="date"]{font-family:var(--mono);font-size:13px;padding:6px 9px;border:1px solid var(--hair);
+  input[type="date"],select{font-family:var(--mono);font-size:13px;padding:6px 9px;border:1px solid var(--hair);
     border-radius:7px;background:var(--surface-2);color:var(--ink)}
   .btn{appearance:none;font-family:var(--sans);font-size:13px;padding:7px 13px;border-radius:7px;
     border:1px solid var(--hair);background:var(--surface-2);color:var(--ink);cursor:pointer}
@@ -113,6 +113,12 @@
   .d-chip{font-family:var(--mono);font-size:12px;padding:4px 9px;border-radius:6px;border:1px solid var(--hair);
     display:inline-flex;gap:7px;align-items:center}
   .d-chip .v.up{color:var(--good)} .d-chip .v.dn{color:var(--bad)}
+
+  .arb-legend{display:flex;flex-wrap:wrap;gap:16px;margin:2px 0 10px;font-family:var(--mono);font-size:11px;
+    color:var(--ink-2)}
+  .arb-legend span{display:inline-flex;align-items:center;gap:6px}
+  .arb-legend i{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
+  #arbChart{width:100%;height:280px}
 
   .news li{list-style:none;padding:10px 0;border-bottom:1px solid var(--hair)}
   .news li:last-child{border-bottom:0}
@@ -194,11 +200,30 @@
     </div>
   </div>
 
+  <div class="panel box" id="arbBox" style="margin-top:16px" hidden>
+    <h3>Arbitragem ANBIMA × B3 (DI×Pré) <span class="tag">manual</span></h3>
+    <p class="muted" style="font-size:13px;margin:-4px 0 12px">Diferença, vértice a vértice, entre a curva prefixada
+      da ANBIMA e a curva DI×Pré publicada pela B3 (arquivo importado manualmente). Positivo = DI acima da pré.</p>
+    <div class="ctl-row">
+      <span class="ctl-label">Pregão</span>
+      <select id="arbDate" aria-label="Escolher pregão com dado da B3"></select>
+    </div>
+    <div class="arb-legend">
+      <span><i style="background:var(--s1)"></i>ANBIMA (pré)</span>
+      <span><i style="background:var(--s2)"></i>B3 (DI×Pré)</span>
+    </div>
+    <div id="arbChart"></div>
+    <div class="tbl-scroll" id="arbTable" style="margin-top:12px"></div>
+  </div>
+
   <footer>
     Fonte: <a href="https://www.anbima.com.br/informacoes/est-termo/" target="_blank" rel="noopener">ANBIMA — Estrutura a Termo das Taxas de Juros</a>
     (curva prefixada / títulos públicos). A ANBIMA mantém poucas semanas on‑line; o histórico aqui é arquivado
     diariamente por um job agendado. Curva reconstruída pela fórmula de Svensson a partir dos parâmetros diários
     da ANBIMA (252 dias úteis = 1 ano). Dados: <code id="genInfo">data/curves.json</code>.
+    A curva B3 (DI×Pré) é importada manualmente (arquivo "Taxas de Mercado para Swaps" da
+    <a href="https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/historico/boletins-diarios/pesquisa-por-pregao/pesquisa-por-pregao/" target="_blank" rel="noopener">Pesquisa por Pregão</a>
+    — o download automático esbarra em proteção anti-bot).
   </footer>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
@@ -249,6 +274,17 @@ async function loadData(){
   }
 }
 
+async function loadB3Data(){
+  // opcional: so existe depois que algum arquivo manual da B3 for importado. Sem fallback sintetico.
+  if(window.__CURVES_B3__ && window.__CURVES_B3__.curves && window.__CURVES_B3__.curves.length) return window.__CURVES_B3__;
+  try{
+    const r=await fetch('data/curves_b3.json',{cache:'no-store'});
+    if(!r.ok) return null;
+    const j=await r.json();
+    return (j.curves && j.curves.length) ? j : null;
+  }catch(err){ return null; }
+}
+
 /* ============================ app ============================ */
 const $=s=>document.querySelector(s);
 const tok=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -265,6 +301,7 @@ const COPOM=[['Copom 06/mai','2026-05-06'],['Copom 17/jun','2026-06-17'],['Copom
 
 let VERT=[], CURVES=[], BYISO=new Map(), FIRST='', LAST='';
 let selected=[], chart=null;
+let B3_BYISO=new Map(), B3_DATES=[], arbChart=null;
 
 let toastT;
 function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('on');
@@ -419,6 +456,48 @@ function renderChart(sel){
   },true);
 }
 
+function renderArb(iso){
+  const a=BYISO.get(iso), b=B3_BYISO.get(iso);
+  if(!a||!b||!arbChart) return;
+  const ink=tok('--ink'),ink2=tok('--ink-2'),muted=tok('--muted'),hair=tok('--hair'),
+    baseCol=tok('--baseline'),surf=tok('--surface');
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const colA=tok('--s1'), colB=tok('--s2');
+
+  arbChart.setOption({
+    animation:!reduced,
+    grid:{left:8,right:16,top:20,bottom:50,containLabel:true},
+    tooltip:{trigger:'axis',backgroundColor:surf,borderColor:hair,borderWidth:1,textStyle:{color:ink,fontSize:12},
+      formatter:ps=>{
+        const head=`<div style="font-family:var(--sans);font-weight:600;margin-bottom:4px">${ps[0].axisValue}</div>`;
+        return head+ps.map(p=>
+          `<div style="display:flex;gap:14px;align-items:center;justify-content:space-between">
+             <span style="display:flex;gap:6px;align-items:center">
+               <span style="width:8px;height:8px;border-radius:2px;background:${p.color}"></span>${p.seriesName}</span>
+             <span style="font-family:'IBM Plex Mono',monospace">${fmt(p.value)}</span></div>`).join('');
+      }},
+    xAxis:{type:'category',data:VERT.map(v=>v.label),boundaryGap:false,
+      axisLabel:{interval:0,fontSize:10,color:muted,fontFamily:'IBM Plex Mono, monospace'},
+      axisLine:{lineStyle:{color:baseCol}},axisTick:{show:false}},
+    yAxis:{type:'value',scale:true,splitNumber:5,
+      axisLabel:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:11,formatter:v=>fmt(v)},
+      splitLine:{lineStyle:{color:hair}},axisLine:{show:false},axisTick:{show:false}},
+    series:[
+      {name:'ANBIMA (pré)',type:'line',data:a.rates,symbol:'none',lineStyle:{width:2,color:colA},itemStyle:{color:colA}},
+      {name:'B3 (DI×Pré)',type:'line',data:b.rates,symbol:'none',lineStyle:{width:2,color:colB},itemStyle:{color:colB}}
+    ]
+  },true);
+
+  let html='<table><caption>Spread B3 − ANBIMA por vértice (bps) — positivo: DI acima da pré</caption><thead><tr>'
+    +'<th scope="col">Vértice</th><th scope="col">ANBIMA</th><th scope="col">B3</th><th scope="col">Spread</th></tr></thead><tbody>';
+  VERT.forEach((v,i)=>{
+    const av=a.rates[i], bv=b.rates[i];
+    const sp=(av!=null&&bv!=null)?(bv-av)*100:null;
+    html+=`<tr><th scope="row">${v.label}</th><td>${fmt(av)}</td><td>${fmt(bv)}</td><td>${sp==null?'—':bps(sp)}</td></tr>`;
+  });
+  $('#arbTable').innerHTML=html+'</tbody></table>';
+}
+
 function refresh(){
   const sel=[...selected].sort();
   $('#readout').textContent=`${sel.length} curva${sel.length===1?'':'s'} · d0 = ${dlabel(LAST)}`;
@@ -431,14 +510,15 @@ function wire(){
   $('#addDate').onclick=()=>di.value?addIso(di.value,{snap:true}):toast('Escolha uma data');
   $('#clearAll').onclick=()=>{selected=[];refresh();};
   $('#genAI').onclick=()=>toast('Opcional na versão final: narrativa gerada por IA (Claude). ~R$1/mês, exige chave de API.');
-  addEventListener('resize',()=>chart&&chart.resize());
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>refresh());
-  new MutationObserver(()=>refresh()).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>chart&&chart.resize());
+  addEventListener('resize',()=>{chart&&chart.resize();arbChart&&arbChart.resize();});
+  const rerenderArb=()=>{const sel=$('#arbDate');if(sel&&sel.value)renderArb(sel.value);};
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{refresh();rerenderArb();});
+  new MutationObserver(()=>{refresh();rerenderArb();}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{chart&&chart.resize();arbChart&&arbChart.resize();});
 }
 
 (async function init(){
-  const data=await loadData();
+  const [data,b3data]=await Promise.all([loadData(),loadB3Data()]);
   VERT=data.tenors;
   CURVES=data.curves.slice().sort((a,b)=>a.date<b.date?-1:1);
   BYISO=new Map(CURVES.map(c=>[c.date,c]));
@@ -459,6 +539,19 @@ function wire(){
   const seed=[LAST,resolveOffset(1)&&resolveOffset(1).date,resolveOffset(30)&&resolveOffset(30).date]
     .filter(Boolean);
   selected=[...new Set(seed)];
+
+  if(b3data && b3data.curves.length){
+    B3_DATES=b3data.curves.map(c=>c.date).sort();
+    B3_BYISO=new Map(b3data.curves.map(c=>[c.date,c]));
+    $('#arbBox').hidden=false;
+    const sel=$('#arbDate');
+    sel.innerHTML=B3_DATES.map(d=>`<option value="${d}">${dlabel(d)}</option>`).join('');
+    sel.value=B3_DATES[B3_DATES.length-1];
+    arbChart=echarts.init($('#arbChart'));
+    sel.onchange=()=>renderArb(sel.value);
+    renderArb(sel.value);
+  }
+
   wire();
   refresh();
 })();
