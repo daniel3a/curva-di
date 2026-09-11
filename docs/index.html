@@ -14,7 +14,7 @@
     --hair:#e2e6ed; --baseline:#c8d0db;
     --accent:#0f2c52; --accent-strong:#0a2040;
     --good:#1c7a4d; --bad:#ad3b3b;
-    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300;
+    --s1:#2255a4; --s2:#a5294a; --s3:#c9962c; --s4:#1f7a52; --s5:#6d3a86; --s6:#b5542e;
     --band:rgba(15,44,82,0.08); --focus:#0f2c52;
     --shadow:0 1px 2px rgba(13,27,42,.05), 0 4px 14px rgba(13,27,42,.04);
     --serif:"Source Serif 4", Georgia, "Times New Roman", serif;
@@ -29,7 +29,7 @@
       --hair:#263049; --baseline:#3a4767;
       --accent:#6f9bdc; --accent-strong:#93b8ea;
       --good:#3fb377; --bad:#e0716c;
-      --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
+      --s1:#3f74c9; --s2:#c04563; --s3:#b8860b; --s4:#2f9a6a; --s5:#8f5aa8; --s6:#b5542e;
       --band:rgba(111,155,220,0.14); --focus:#6f9bdc;
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.24);
     }
@@ -41,7 +41,7 @@
     --hair:#263049; --baseline:#3a4767;
     --accent:#6f9bdc; --accent-strong:#93b8ea;
     --good:#3fb377; --bad:#e0716c;
-    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
+    --s1:#3f74c9; --s2:#c04563; --s3:#b8860b; --s4:#2f9a6a; --s5:#8f5aa8; --s6:#b5542e;
     --band:rgba(111,155,220,0.14); --focus:#6f9bdc;
     --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.24);
   }
@@ -99,7 +99,8 @@
     font-size:12px;color:var(--ink-2)}
   .chart-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
   .readout{font-family:var(--mono);font-size:11px;color:var(--muted)}
-  #chart{width:100%;height:clamp(400px,55vh,520px)}
+  .chart-scroll{overflow-x:auto;overflow-y:hidden}
+  #chart{height:clamp(400px,55vh,520px)}
 
   details.tbl{margin-top:12px}
   details.tbl summary{font-family:var(--mono);font-size:12px;color:var(--accent-strong);cursor:pointer;
@@ -129,7 +130,7 @@
     color:var(--ink-2)}
   .arb-legend span{display:inline-flex;align-items:center;gap:6px}
   .arb-legend i{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
-  #arbChart{width:100%;height:320px}
+  #arbChart{height:320px}
 
   .news li{list-style:none;padding:10px 0;border-bottom:1px solid var(--hair)}
   .news li:last-child{border-bottom:0}
@@ -189,7 +190,8 @@
       </div>
       <span class="readout" id="readout"></span>
     </div>
-    <div id="chart"></div>
+    <div class="chart-scroll"><div id="chart"></div></div>
+    <p class="muted" style="font-size:11px;margin:6px 0 0">Role para o lado para ver a curva inteira — mais espaço por vértice deixa as mudanças de direção mais claras.</p>
     <details class="tbl">
       <summary>Ver tabela de dados</summary>
       <div class="tbl-scroll" id="tblWrap"></div>
@@ -226,7 +228,7 @@
       <span><i style="background:var(--s1)"></i>ANBIMA (pré)</span>
       <span><i style="background:var(--s2)"></i>B3 (DI×Pré)</span>
     </div>
-    <div id="arbChart"></div>
+    <div class="chart-scroll"><div id="arbChart"></div></div>
     <div class="tbl-scroll" id="arbTable" style="margin-top:12px"></div>
   </div>
 
@@ -448,7 +450,15 @@ function renderSummary(sel){
      <div class="delta-row">${chips}</div>`;
 }
 
+function sizeChart(elId,inst){
+  const el=document.getElementById(elId), wrap=el.parentElement;
+  const w=Math.max(wrap.clientWidth, VERT.length*26);
+  el.style.width=w+'px';
+  inst.resize();
+}
+
 function renderChart(sel){
+  sizeChart('chart',chart);
   const ink=tok('--ink'),ink2=tok('--ink-2'),muted=tok('--muted'),hair=tok('--hair'),
     baseCol=tok('--baseline'),surf=tok('--surface'),band=tok('--band');
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -468,8 +478,8 @@ function renderChart(sel){
     const c=BYISO.get(iso),col=colorFor(iso,sel),emph=iso===maxIso;
     series.push({
       name:dlabel(iso),type:'line',data:c.rates,smooth:false,connectNulls:false,
-      symbol:'circle',symbolSize:emph?5:4,
-      lineStyle:{width:emph?2.4:1.6,color:col},itemStyle:{color:col,borderColor:surf,borderWidth:1},
+      symbol:'circle',symbolSize:emph?7:6,
+      lineStyle:{width:emph?3.2:2.4,color:col},itemStyle:{color:col,borderColor:surf,borderWidth:1.5},
       emphasis:{focus:'series'},
       endLabel:sel.length<=4?{show:true,formatter:p=>fmt(p.value),color:col,
         fontFamily:'IBM Plex Mono, monospace',fontSize:11,fontWeight:emph?600:400}:{show:false},
@@ -494,6 +504,7 @@ function renderChart(sel){
     xAxis:{type:'category',data:VERT.map(v=>v.label),boundaryGap:false,
       axisLabel:{interval:0,rotate:55,fontSize:9,color:muted,fontFamily:'IBM Plex Mono, monospace'},
       axisLine:{lineStyle:{color:baseCol}},axisTick:{show:false},
+      splitLine:{show:true,lineStyle:{color:hair}},
       name:'Vencimento',nameLocation:'middle',nameGap:64,nameTextStyle:{color:ink2,fontSize:11}},
     yAxis:{type:'value',scale:true,splitNumber:6,
       axisLabel:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:11,formatter:v=>fmt(v)},
@@ -506,6 +517,7 @@ function renderChart(sel){
 function renderArb(iso){
   const a=BYISO.get(iso), b=B3_BYISO.get(iso);
   if(!a||!b||!arbChart) return;
+  sizeChart('arbChart',arbChart);
   const ink=tok('--ink'),ink2=tok('--ink-2'),muted=tok('--muted'),hair=tok('--hair'),
     baseCol=tok('--baseline'),surf=tok('--surface');
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -525,15 +537,16 @@ function renderArb(iso){
       }},
     xAxis:{type:'category',data:VERT.map(v=>v.label),boundaryGap:false,
       axisLabel:{interval:0,rotate:55,fontSize:9,color:muted,fontFamily:'IBM Plex Mono, monospace'},
-      axisLine:{lineStyle:{color:baseCol}},axisTick:{show:false}},
+      axisLine:{lineStyle:{color:baseCol}},axisTick:{show:false},
+      splitLine:{show:true,lineStyle:{color:hair}}},
     yAxis:{type:'value',scale:true,splitNumber:5,
       axisLabel:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:11,formatter:v=>fmt(v)},
       splitLine:{lineStyle:{color:hair}},axisLine:{show:false},axisTick:{show:false}},
     series:[
-      {name:'ANBIMA (pré)',type:'line',data:a.rates,smooth:false,symbol:'circle',symbolSize:4,
-        lineStyle:{width:2,color:colA},itemStyle:{color:colA,borderColor:surf,borderWidth:1}},
-      {name:'B3 (DI×Pré)',type:'line',data:b.rates,smooth:false,symbol:'circle',symbolSize:4,
-        lineStyle:{width:2,color:colB},itemStyle:{color:colB,borderColor:surf,borderWidth:1}}
+      {name:'ANBIMA (pré)',type:'line',data:a.rates,smooth:false,symbol:'circle',symbolSize:6,
+        lineStyle:{width:2.8,color:colA},itemStyle:{color:colA,borderColor:surf,borderWidth:1.5}},
+      {name:'B3 (DI×Pré)',type:'line',data:b.rates,smooth:false,symbol:'circle',symbolSize:6,
+        lineStyle:{width:2.8,color:colB},itemStyle:{color:colB,borderColor:surf,borderWidth:1.5}}
     ]
   },true);
 
@@ -559,11 +572,11 @@ function wire(){
   $('#addDate').onclick=()=>di.value?addIso(di.value,{snap:true}):toast('Escolha uma data');
   $('#clearAll').onclick=()=>{selected=[];refresh();};
   $('#genAI').onclick=()=>toast('Opcional na versão final: narrativa gerada por IA (Claude). ~R$1/mês, exige chave de API.');
-  addEventListener('resize',()=>{chart&&chart.resize();arbChart&&arbChart.resize();});
   const rerenderArb=()=>{const sel=$('#arbDate');if(sel&&sel.value)renderArb(sel.value);};
+  addEventListener('resize',()=>{chart&&sizeChart('chart',chart);arbChart&&rerenderArb();});
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{refresh();rerenderArb();});
   new MutationObserver(()=>{refresh();rerenderArb();}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{chart&&chart.resize();arbChart&&arbChart.resize();});
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{chart&&sizeChart('chart',chart);rerenderArb();});
 }
 
 (async function init(){
