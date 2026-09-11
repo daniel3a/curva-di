@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Curva de Juros DI — B3</title>
+<title>Curva de Juros</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -139,10 +139,11 @@
 </head>
 <body>
 <div class="wrap">
-  <p class="eyebrow">B3 · Mercado de juros</p>
-  <h1>Curva de Juros DI</h1>
-  <p class="lede">Curva PRÉ (DI&nbsp;×&nbsp;Pré) da B3 — taxa em % ao ano por vértice, comparada entre pregões.
-    Escolha datas específicas, defasagens (d‑1 a d‑360) ou pregões de reunião do Copom.</p>
+  <p class="eyebrow">Renda fixa · Mercado de juros</p>
+  <h1>Curva de Juros</h1>
+  <p class="lede">Curva prefixada brasileira (ETTJ da ANBIMA — títulos públicos), taxa em % ao ano por vértice,
+    comparada entre pregões. Anda colada na curva DI. Escolha datas específicas, defasagens
+    (d‑1 a d‑360) ou pregões de reunião do Copom.</p>
   <hr class="rule">
   <div class="banner" id="banner" hidden></div>
 
@@ -165,7 +166,7 @@
 
   <div class="panel chart-card">
     <div class="chart-head">
-      <h2>Curva PRÉ — % a.a.</h2>
+      <h2>Curva prefixada — % a.a.</h2>
       <span class="readout" id="readout"></span>
     </div>
     <div id="chart"></div>
@@ -194,9 +195,10 @@
   </div>
 
   <footer>
-    Fonte: <a href="https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/consultas/mercado-de-derivativos/precos-referenciais/taxas-referenciais-bm-fbovespa/" target="_blank" rel="noopener">B3 — Taxas Referenciais BM&amp;FBOVESPA</a>,
-    curva PRÉ (DI&nbsp;×&nbsp;Pré). A B3 mantém ~1 mês on‑line; o histórico aqui é arquivado diariamente por um job agendado.
-    Dados: <code id="genInfo">data/curves.json</code>. Interpolação linear em dias corridos sobre a taxa base 252.
+    Fonte: <a href="https://www.anbima.com.br/informacoes/est-termo/" target="_blank" rel="noopener">ANBIMA — Estrutura a Termo das Taxas de Juros</a>
+    (curva prefixada / títulos públicos). A ANBIMA mantém poucas semanas on‑line; o histórico aqui é arquivado
+    diariamente por um job agendado. Curva reconstruída pela fórmula de Svensson a partir dos parâmetros diários
+    da ANBIMA (252 dias úteis = 1 ano). Dados: <code id="genInfo">data/curves.json</code>.
   </footer>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
@@ -205,10 +207,10 @@
 <script>
 /* ===== fallback sintetico (usado se data/curves.json ainda nao existir) ===== */
 const FALLBACK_TENORS = [
-  {label:'1M',days:30},{label:'2M',days:60},{label:'3M',days:91},{label:'6M',days:182},
-  {label:'9M',days:273},{label:'1A',days:365},{label:'1A6M',days:548},{label:'2A',days:730},
-  {label:'3A',days:1095},{label:'4A',days:1460},{label:'5A',days:1825},{label:'7A',days:2555},
-  {label:'8A',days:2920},{label:'10A',days:3650},{label:'12A',days:4380}
+  {label:'1M',bd:21},{label:'2M',bd:42},{label:'3M',bd:63},{label:'6M',bd:126},
+  {label:'9M',bd:189},{label:'1A',bd:252},{label:'1A6M',bd:378},{label:'2A',bd:504},
+  {label:'3A',bd:756},{label:'4A',bd:1008},{label:'5A',bd:1260},{label:'6A',bd:1512},
+  {label:'7A',bd:1764},{label:'8A',bd:2016},{label:'9A',bd:2268},{label:'10A',bd:2520}
 ];
 function mul(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
@@ -222,7 +224,7 @@ function syntheticData(){
     let lvl=0.30*(1-fr)+0.04*Math.sin(i/5.5);
     if(tail<15) lvl-=0.10*Math.pow((15-tail)/15,1.3);
     const rates=FALLBACK_TENORS.map((v,vi)=>{
-      const t=v.days/365;
+      const t=v.bd/252;
       const base=13.85-0.34*Math.exp(-t/0.7)+1.02*(1-Math.exp(-t/4.2))-0.28/(1+Math.exp(-(t-12)/2.5));
       const nz=(mul(i*1301+vi*7)()-0.5)*0.02;
       return +(base+lvl+nz).toFixed(3);
@@ -234,6 +236,8 @@ function syntheticData(){
 
 /* ===================== carregamento de dados ===================== */
 async function loadData(){
+  // dados embutidos (preview offline / Artifact) tem prioridade
+  if(window.__CURVES__ && window.__CURVES__.curves && window.__CURVES__.curves.length) return window.__CURVES__;
   try{
     const r=await fetch('data/curves.json',{cache:'no-store'});
     if(!r.ok) throw new Error('http '+r.status);
@@ -444,7 +448,7 @@ function wire(){
   if(data._synthetic){
     banner.hidden=false;
     banner.innerHTML='<strong>Dados de exemplo.</strong> O coletor ainda não gerou <code>data/curves.json</code> — '
-      +'assim que o job diário rodar (ou o backfill), esta página passa a mostrar a curva real da B3.';
+      +'assim que o job diário rodar, esta página passa a mostrar a curva real da ANBIMA.';
     $('#genInfo').textContent='data/curves.json (ainda não gerado — exibindo exemplo)';
   }else{
     $('#genInfo').textContent=`data/curves.json · ${data.curves.length} pregões · atualizado ${(''+data.generated_at).slice(0,10)}`;
