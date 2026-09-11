@@ -91,9 +91,13 @@
   .pill button:hover{color:var(--bad)}
 
   .chart-card{margin-top:16px;padding:16px}
-  .chart-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;justify-content:space-between;
-    margin-bottom:6px}
+  .chart-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:flex-start;justify-content:space-between;
+    margin-bottom:10px}
   .chart-head h2{font-family:var(--serif);font-size:18px;font-weight:600;margin:0;color:var(--ink)}
+  .chart-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:8px}
+  .chart-legend span{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);
+    font-size:12px;color:var(--ink-2)}
+  .chart-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
   .readout{font-family:var(--mono);font-size:11px;color:var(--muted)}
   #chart{width:100%;height:clamp(400px,55vh,520px)}
 
@@ -179,7 +183,10 @@
 
   <div class="panel chart-card">
     <div class="chart-head">
-      <h2>Curva prefixada — % a.a.</h2>
+      <div>
+        <h2>Curva prefixada — % a.a.</h2>
+        <div class="chart-legend" id="chartLegend"></div>
+      </div>
       <span class="readout" id="readout"></span>
     </div>
     <div id="chart"></div>
@@ -247,13 +254,13 @@ function buildVertices(today){
   const y0=today.getUTCFullYear(), m0=today.getUTCMonth()+1;
   const verts=[];
   let [y,m]=addMonth(y0,m0);
-  while(y*12+m<=(y0+2)*12+12){
+  while(y*12+m<=(y0+1)*12+12){
     verts.push({label:lab(y,m),date:new Date(Date.UTC(y,m-1,1))});
     [y,m]=addMonth(y,m);
   }
-  for(let yy=y0+3;yy<y0+6;yy++) for(const mm of COPOM_MONTHS)
+  for(let yy=y0+2;yy<y0+5;yy++) for(const mm of COPOM_MONTHS)
     verts.push({label:lab(yy,mm),date:new Date(Date.UTC(yy,mm-1,1))});
-  for(let yy=y0+6;yy<y0+16;yy++)
+  for(let yy=y0+5;yy<y0+16;yy++)
     verts.push({label:lab(yy,1),date:new Date(Date.UTC(yy,0,1))});
   return verts;
 }
@@ -381,6 +388,12 @@ function renderPills(sel){
     const x=document.createElement('button');x.setAttribute('aria-label',`Remover ${dlabel(iso)}`);x.textContent='×';
     x.onclick=()=>removeIso(iso);el.appendChild(x);box.appendChild(el);
   });
+}
+
+function renderLegend(sel){
+  const box=$('#chartLegend');
+  box.innerHTML=sel.map(iso=>
+    `<span><i style="background:${colorFor(iso,sel)}"></i>${dlabel(iso)}</span>`).join('');
 }
 
 function renderTable(sel){
@@ -537,7 +550,7 @@ function renderArb(iso){
 function refresh(){
   const sel=[...selected].sort();
   $('#readout').textContent=`${sel.length} curva${sel.length===1?'':'s'} · d0 = ${dlabel(LAST)}`;
-  renderPills(sel);renderChart(sel);renderSummary(sel);renderTable(sel);
+  renderPills(sel);renderLegend(sel);renderChart(sel);renderSummary(sel);renderTable(sel);
 }
 
 function wire(){

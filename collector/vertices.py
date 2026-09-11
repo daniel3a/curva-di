@@ -39,20 +39,20 @@ def build_vertices(today: dt.date | None = None) -> list[tuple[str, dt.date]]:
     y0, m0 = today.year, today.month
     verts: list[tuple[str, dt.date]] = []
 
-    # i. mensal: mes seguinte -> dezembro de y0+2
+    # i. mensal: mes seguinte -> dezembro de y0+1
     y, m = _add_month(y0, m0)
-    end = (y0 + 2, 12)
+    end = (y0 + 1, 12)
     while (y, m) <= end:
         verts.append((_label(y, m), dt.date(y, m, 1)))
         y, m = _add_month(y, m)
 
-    # ii. meses de copom, anos y0+3 .. y0+5
-    for yy in range(y0 + 3, y0 + 6):
+    # ii. meses de copom, anos y0+2 .. y0+4
+    for yy in range(y0 + 2, y0 + 5):
         for mm in COPOM_MONTHS:
             verts.append((_label(yy, mm), dt.date(yy, mm, 1)))
 
-    # iii. anual em janeiro, anos y0+6 .. y0+15
-    for yy in range(y0 + 6, y0 + 16):
+    # iii. anual em janeiro, anos y0+5 .. y0+15 (mesmo horizonte final -- jan/41 a partir de 2026)
+    for yy in range(y0 + 5, y0 + 16):
         verts.append((_label(yy, 1), dt.date(yy, 1, 1)))
 
     return verts
