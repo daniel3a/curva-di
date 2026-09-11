@@ -88,7 +88,7 @@
     margin-bottom:6px}
   .chart-head h2{font-size:15px;font-weight:600;margin:0}
   .readout{font-family:var(--mono);font-size:11px;color:var(--muted)}
-  #chart{width:100%;height:clamp(360px,52vh,480px)}
+  #chart{width:100%;height:clamp(400px,55vh,520px)}
 
   details.tbl{margin-top:12px}
   details.tbl summary{font-family:var(--mono);font-size:12px;color:var(--accent-strong);cursor:pointer;
@@ -118,7 +118,7 @@
     color:var(--ink-2)}
   .arb-legend span{display:inline-flex;align-items:center;gap:6px}
   .arb-legend i{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
-  #arbChart{width:100%;height:280px}
+  #arbChart{width:100%;height:320px}
 
   .news li{list-style:none;padding:10px 0;border-bottom:1px solid var(--hair)}
   .news li:last-child{border-bottom:0}
@@ -220,7 +220,8 @@
     Fonte: <a href="https://www.anbima.com.br/informacoes/est-termo/" target="_blank" rel="noopener">ANBIMA — Estrutura a Termo das Taxas de Juros</a>
     (curva prefixada / títulos públicos). A ANBIMA mantém poucas semanas on‑line; o histórico aqui é arquivado
     diariamente por um job agendado. Curva reconstruída pela fórmula de Svensson a partir dos parâmetros diários
-    da ANBIMA (252 dias úteis = 1 ano). Dados: <code id="genInfo">data/curves.json</code>.
+    da ANBIMA, avaliada em cada data de vencimento (mensal até 2 anos, meses de Copom até 5 anos, anual em
+    janeiro depois disso). Dados: <code id="genInfo">data/curves.json</code>.
     A curva B3 (DI×Pré) é importada manualmente (arquivo "Taxas de Mercado para Swaps" da
     <a href="https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/historico/boletins-diarios/pesquisa-por-pregao/pesquisa-por-pregao/" target="_blank" rel="noopener">Pesquisa por Pregão</a>
     — o download automático esbarra em proteção anti-bot).
@@ -230,13 +231,27 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
 <script>
+/* ===== vertices por data de vencimento (mesma regra do coletor, ver vertices.py) ===== */
+const MESES_PT=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const COPOM_MONTHS=[1,3,5,6,7,9,11,12];
+function buildVertices(today){
+  const lab=(y,m)=>`${MESES_PT[m-1]}/${String(y).slice(2)}`;
+  const addMonth=(y,m)=>{m++;if(m>12){y++;m=1;}return [y,m];};
+  const y0=today.getUTCFullYear(), m0=today.getUTCMonth()+1;
+  const verts=[];
+  let [y,m]=addMonth(y0,m0);
+  while(y*12+m<=(y0+2)*12+12){
+    verts.push({label:lab(y,m),date:new Date(Date.UTC(y,m-1,1))});
+    [y,m]=addMonth(y,m);
+  }
+  for(let yy=y0+3;yy<y0+6;yy++) for(const mm of COPOM_MONTHS)
+    verts.push({label:lab(yy,mm),date:new Date(Date.UTC(yy,mm-1,1))});
+  for(let yy=y0+6;yy<y0+16;yy++)
+    verts.push({label:lab(yy,1),date:new Date(Date.UTC(yy,0,1))});
+  return verts;
+}
+
 /* ===== fallback sintetico (usado se data/curves.json ainda nao existir) ===== */
-const FALLBACK_TENORS = [
-  {label:'1M',bd:21},{label:'2M',bd:42},{label:'3M',bd:63},{label:'6M',bd:126},
-  {label:'9M',bd:189},{label:'1A',bd:252},{label:'1A6M',bd:378},{label:'2A',bd:504},
-  {label:'3A',bd:756},{label:'4A',bd:1008},{label:'5A',bd:1260},{label:'6A',bd:1512},
-  {label:'7A',bd:1764},{label:'8A',bd:2016},{label:'9A',bd:2268},{label:'10A',bd:2520}
-];
 function mul(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function syntheticData(){
@@ -244,19 +259,22 @@ function syntheticData(){
   while(d.getTime()<=end){const wd=d.getUTCDay();if(wd!==0&&wd!==6)days.push(new Date(d));
     d.setUTCDate(d.getUTCDate()+1);}
   const M=days.length;
+  const vert=buildVertices(new Date());
   const curves=days.map((dt_,i)=>{
     const fr=i/(M-1), tail=(M-1)-i;
     let lvl=0.30*(1-fr)+0.04*Math.sin(i/5.5);
     if(tail<15) lvl-=0.10*Math.pow((15-tail)/15,1.3);
-    const rates=FALLBACK_TENORS.map((v,vi)=>{
-      const t=v.bd/252;
+    const rates=vert.map((v,vi)=>{
+      const t=(v.date.getTime()-dt_.getTime())/(365.25*864e5);
+      if(t<=0) return null;
       const base=13.85-0.34*Math.exp(-t/0.7)+1.02*(1-Math.exp(-t/4.2))-0.28/(1+Math.exp(-(t-12)/2.5));
       const nz=(mul(i*1301+vi*7)()-0.5)*0.02;
       return +(base+lvl+nz).toFixed(3);
     });
     return {date:dt_.toISOString().slice(0,10),rates};
   });
-  return {tenors:FALLBACK_TENORS,curves,_synthetic:true};
+  const tenors=vert.map(v=>({label:v.label,date:v.date.toISOString().slice(0,10)}));
+  return {tenors,curves,_synthetic:true};
 }
 
 /* ===================== carregamento de dados ===================== */
@@ -378,6 +396,13 @@ function renderTable(sel){
   wrap.innerHTML=html+'</tbody></table>';
 }
 
+function nearestVertexIndex(monthsFromToday){
+  const target=Date.now()+monthsFromToday*30.44*864e5;
+  let best=0,bestDiff=Infinity;
+  VERT.forEach((v,i)=>{const diff=Math.abs(Date.parse(v.date)-target);if(diff<bestDiff){bestDiff=diff;best=i;}});
+  return best;
+}
+
 function renderSummary(sel){
   const box=$('#summary');
   if(sel.length<2){box.innerHTML='<p class="muted">Selecione ao menos duas datas para ver a variação.</p>';return;}
@@ -387,19 +412,19 @@ function renderSummary(sel){
   const valid=dd.filter(x=>x.d!=null);
   if(!valid.length){box.innerHTML='<p class="muted">Sem vértices em comum entre as datas.</p>';return;}
   const mean=avg(valid.map(x=>x.d));
-  const li=VERT.findIndex(v=>v.label==='2A');
+  const li=nearestVertexIndex(24); // ~2 anos: divisor entre "curto" e "longo"
   const shortAvg=avg(dd.slice(0,li+1).map(x=>x.d));
   const longAvg=avg(dd.slice(li+1).map(x=>x.d));
   const mx=valid.reduce((m,x)=>Math.abs(x.d)>Math.abs(m.d)?x:m);
   const dir=mean<-1?'recuou':mean>1?'avançou':'ficou praticamente estável';
-  const keys=['3M','1A','2A','3A','5A','10A'];
-  const chips=keys.map(k=>{const row=dd.find(x=>x.label===k);if(!row||row.d==null)return '';
-    return `<span class="d-chip">${k}<span class="v ${row.d<=0?'up':'dn'}">${bps(row.d)}</span></span>`;}).join('');
+  const keyIdx=[...new Set([3,12,24,36,60,120].map(nearestVertexIndex))];
+  const chips=keyIdx.map(i=>{const row=dd[i];if(!row||row.d==null)return '';
+    return `<span class="d-chip">${VERT[i].label}<span class="v ${row.d<=0?'up':'dn'}">${bps(row.d)}</span></span>`;}).join('');
   box.innerHTML=
     `<p>Entre <strong>${dlabel(a.date)}</strong> e <strong>${dlabel(b.date)}</strong>, a curva PRÉ
       <strong>${dir}</strong> em média <strong>${bps(mean)} bps</strong>.</p>
      <p class="muted" style="font-size:13px">Maior movimento: vértice <strong>${mx.label}</strong> (${bps(mx.d)} bps).
-      Curto (até 2A): ${bps(shortAvg)} bps · longo (3A+): ${bps(longAvg)} bps.</p>
+      Curto (até ~2A): ${bps(shortAvg)} bps · longo: ${bps(longAvg)} bps.</p>
      <div class="delta-row">${chips}</div>`;
 }
 
@@ -422,8 +447,10 @@ function renderChart(sel){
   sel.forEach(iso=>{
     const c=BYISO.get(iso),col=colorFor(iso,sel),emph=iso===maxIso;
     series.push({
-      name:dlabel(iso),type:'line',data:c.rates,symbol:'none',connectNulls:false,
-      lineStyle:{width:emph?2.6:1.6,color:col},itemStyle:{color:col},emphasis:{focus:'series'},
+      name:dlabel(iso),type:'line',data:c.rates,smooth:false,connectNulls:false,
+      symbol:'circle',symbolSize:emph?5:4,
+      lineStyle:{width:emph?2.4:1.6,color:col},itemStyle:{color:col,borderColor:surf,borderWidth:1},
+      emphasis:{focus:'series'},
       endLabel:sel.length<=4?{show:true,formatter:p=>fmt(p.value),color:col,
         fontFamily:'IBM Plex Mono, monospace',fontSize:11,fontWeight:emph?600:400}:{show:false},
       z:emph?10:5
@@ -432,7 +459,7 @@ function renderChart(sel){
 
   chart.setOption({
     animation:!reduced,
-    grid:{left:8,right:78,top:34,bottom:56,containLabel:true},
+    grid:{left:8,right:78,top:34,bottom:76,containLabel:true},
     tooltip:{trigger:'axis',backgroundColor:surf,borderColor:hair,borderWidth:1,
       textStyle:{color:ink,fontSize:12},
       formatter:ps=>{
@@ -445,9 +472,9 @@ function renderChart(sel){
              <span style="font-family:'IBM Plex Mono',monospace">${fmt(p.value)}</span></div>`).join('');
       }},
     xAxis:{type:'category',data:VERT.map(v=>v.label),boundaryGap:false,
-      axisLabel:{interval:0,fontSize:10,color:muted,fontFamily:'IBM Plex Mono, monospace'},
+      axisLabel:{interval:0,rotate:55,fontSize:9,color:muted,fontFamily:'IBM Plex Mono, monospace'},
       axisLine:{lineStyle:{color:baseCol}},axisTick:{show:false},
-      name:'Vencimento',nameLocation:'middle',nameGap:34,nameTextStyle:{color:ink2,fontSize:11}},
+      name:'Vencimento',nameLocation:'middle',nameGap:64,nameTextStyle:{color:ink2,fontSize:11}},
     yAxis:{type:'value',scale:true,splitNumber:6,
       axisLabel:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:11,formatter:v=>fmt(v)},
       splitLine:{lineStyle:{color:hair}},axisLine:{show:false},axisTick:{show:false},
@@ -466,7 +493,7 @@ function renderArb(iso){
 
   arbChart.setOption({
     animation:!reduced,
-    grid:{left:8,right:16,top:20,bottom:50,containLabel:true},
+    grid:{left:8,right:16,top:20,bottom:70,containLabel:true},
     tooltip:{trigger:'axis',backgroundColor:surf,borderColor:hair,borderWidth:1,textStyle:{color:ink,fontSize:12},
       formatter:ps=>{
         const head=`<div style="font-family:var(--sans);font-weight:600;margin-bottom:4px">${ps[0].axisValue}</div>`;
@@ -477,14 +504,16 @@ function renderArb(iso){
              <span style="font-family:'IBM Plex Mono',monospace">${fmt(p.value)}</span></div>`).join('');
       }},
     xAxis:{type:'category',data:VERT.map(v=>v.label),boundaryGap:false,
-      axisLabel:{interval:0,fontSize:10,color:muted,fontFamily:'IBM Plex Mono, monospace'},
+      axisLabel:{interval:0,rotate:55,fontSize:9,color:muted,fontFamily:'IBM Plex Mono, monospace'},
       axisLine:{lineStyle:{color:baseCol}},axisTick:{show:false}},
     yAxis:{type:'value',scale:true,splitNumber:5,
       axisLabel:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:11,formatter:v=>fmt(v)},
       splitLine:{lineStyle:{color:hair}},axisLine:{show:false},axisTick:{show:false}},
     series:[
-      {name:'ANBIMA (pré)',type:'line',data:a.rates,symbol:'none',lineStyle:{width:2,color:colA},itemStyle:{color:colA}},
-      {name:'B3 (DI×Pré)',type:'line',data:b.rates,symbol:'none',lineStyle:{width:2,color:colB},itemStyle:{color:colB}}
+      {name:'ANBIMA (pré)',type:'line',data:a.rates,smooth:false,symbol:'circle',symbolSize:4,
+        lineStyle:{width:2,color:colA},itemStyle:{color:colA,borderColor:surf,borderWidth:1}},
+      {name:'B3 (DI×Pré)',type:'line',data:b.rates,smooth:false,symbol:'circle',symbolSize:4,
+        lineStyle:{width:2,color:colB},itemStyle:{color:colB,borderColor:surf,borderWidth:1}}
     ]
   },true);
 

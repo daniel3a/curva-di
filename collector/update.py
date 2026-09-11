@@ -22,6 +22,7 @@ import sys
 
 from fetch_anbima import NoDataForDate, fetch_ettj
 from import_b3_manual import run_and_rebuild as run_b3_manual
+from vertices import build_vertices
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RAW_DIR = ROOT / "docs" / "data" / "raw"
@@ -31,13 +32,8 @@ INDEX_JSON = ROOT / "docs" / "data" / "index.json"
 LOOKBACK_BIZ_DAYS = 45
 MAX_CONSECUTIVE_MISSES = 12
 
-# grade fixa de vertices para o dashboard: (dias uteis, rotulo)
-# 252 dias uteis = 1 ano (convencao ANBIMA). Ate 10A, faixa em que a ETTJ e ajustada.
-TENOR_GRID = [
-    (21, "1M"), (42, "2M"), (63, "3M"), (126, "6M"), (189, "9M"), (252, "1A"),
-    (378, "1A6M"), (504, "2A"), (756, "3A"), (1008, "4A"), (1260, "5A"),
-    (1512, "6A"), (1764, "7A"), (2016, "8A"), (2268, "9A"), (2520, "10A"),
-]
+# vertices por data de vencimento (mm/aa), recalculados a cada run -- ver vertices.py
+VERTICES = build_vertices()
 
 
 def business_days_back(end: dt.date, n: int) -> list[dt.date]:
@@ -64,9 +60,14 @@ def svensson(p: dict, t_years: float) -> float:
     return round(r * 100.0, 4)
 
 
-def raw_to_grid(raw: dict) -> list[float]:
+def raw_to_grid(raw: dict) -> list[float | None]:
     p = raw["svensson_pref"]
-    return [svensson(p, bd / 252.0) for bd, _ in TENOR_GRID]
+    curve_date = dt.date.fromisoformat(raw["date"])
+    rates = []
+    for _, vdate in VERTICES:
+        t_years = (vdate - curve_date).days / 365.25
+        rates.append(svensson(p, t_years) if t_years > 0 else None)
+    return rates
 
 
 def load_existing_dates() -> set[str]:
@@ -124,8 +125,8 @@ def rebuild_outputs() -> int:
             {
                 "generated_at": now,
                 "source": "ANBIMA - Estrutura a Termo das Taxas de Juros (curva prefixada / ETTJ PREF)",
-                "method": "curva Svensson (NSS) reconstruida dos parametros diarios da ANBIMA; 252 du = 1 ano",
-                "tenors": [{"label": lab, "bd": bd} for bd, lab in TENOR_GRID],
+                "method": "curva Svensson (NSS) reconstruida dos parametros diarios da ANBIMA, avaliada em cada data de vencimento",
+                "tenors": [{"label": lab, "date": vdate.isoformat()} for lab, vdate in VERTICES],
                 "curves": curves,
             },
             ensure_ascii=False,

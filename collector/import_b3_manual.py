@@ -22,6 +22,8 @@ import json
 import pathlib
 import re
 
+from vertices import build_vertices
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 INBOX = ROOT / "b3-manual-inbox"
 RAW_DIR = ROOT / "docs" / "data" / "raw_b3"
@@ -29,12 +31,8 @@ CURVES_JSON = ROOT / "docs" / "data" / "curves_b3.json"
 
 DATE_RE = re.compile(r"(20\d{2})(\d{2})(\d{2})")
 
-# mesma grade (em dias uteis) usada para a curva ANBIMA, pra dar pra comparar direto
-TENOR_GRID = [
-    (21, "1M"), (42, "2M"), (63, "3M"), (126, "6M"), (189, "9M"), (252, "1A"),
-    (378, "1A6M"), (504, "2A"), (756, "3A"), (1008, "4A"), (1260, "5A"),
-    (1512, "6A"), (1764, "7A"), (2016, "8A"), (2268, "9A"), (2520, "10A"),
-]
+# mesma grade de vertices (por data de vencimento) usada na curva ANBIMA -- ver vertices.py
+VERTICES = build_vertices()
 
 
 def extract_date(filename: str) -> dt.date | None:
@@ -112,11 +110,16 @@ def _interp(xs: list[float], ys: list[float], x: float) -> float | None:
     return None
 
 
-def _to_grid(vertices: list[list[float]]) -> list[float | None]:
-    rows = sorted(vertices, key=lambda r: r[0])
-    xs = [r[0] for r in rows]
+def _to_grid(vertices: list[list[float]], curve_date: dt.date) -> list[float | None]:
+    """Interpola o arquivo bruto da B3 (dias corridos x taxa) em cada data de vencimento."""
+    rows = sorted(vertices, key=lambda r: r[1])  # ordena por dias corridos
+    xs = [r[1] for r in rows]
     ys = [r[2] for r in rows]
-    return [_interp(xs, ys, bd) for bd, _ in TENOR_GRID]
+    rates = []
+    for _, vdate in VERTICES:
+        dc = (vdate - curve_date).days
+        rates.append(_interp(xs, ys, dc) if dc > 0 else None)
+    return rates
 
 
 def rebuild() -> int:
@@ -125,7 +128,8 @@ def rebuild() -> int:
     curves = []
     for p in files:
         raw = json.loads(p.read_text(encoding="utf-8"))
-        curves.append({"date": raw["date"], "rates": _to_grid(raw["vertices"])})
+        curve_date = dt.date.fromisoformat(raw["date"])
+        curves.append({"date": raw["date"], "rates": _to_grid(raw["vertices"], curve_date)})
 
     now = (
         dt.datetime.now(dt.timezone.utc)
@@ -138,8 +142,8 @@ def rebuild() -> int:
             {
                 "generated_at": now,
                 "source": "B3 - Mercado de Derivativos: Taxas de Mercado para Swaps (DI x pre) - importado manualmente",
-                "method": "interpolacao linear em dias uteis sobre o arquivo publicado pela B3",
-                "tenors": [{"label": lab, "bd": bd} for bd, lab in TENOR_GRID],
+                "method": "interpolacao linear em dias corridos sobre o arquivo publicado pela B3, avaliada em cada data de vencimento",
+                "tenors": [{"label": lab, "date": vdate.isoformat()} for lab, vdate in VERTICES],
                 "curves": curves,
             },
             ensure_ascii=False,
