@@ -5,58 +5,63 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Curva de Juros</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap">
 <style>
   :root{
     color-scheme: light;
-    --plane:#f4f4ef; --surface:#fbfbf8; --surface-2:#efefe8;
-    --ink:#14160f; --ink-2:#585b4f; --muted:#8a8d80;
-    --hair:#e2e2d7; --baseline:#c5c6b8;
-    --accent:#0f6f66; --accent-strong:#0b544c;
-    --good:#0a7d0a; --bad:#c23b3b;
+    --plane:#f7f8fa; --surface:#ffffff; --surface-2:#eef1f5;
+    --ink:#0d1b2a; --ink-2:#48566b; --muted:#8993a3;
+    --hair:#e2e6ed; --baseline:#c8d0db;
+    --accent:#0f2c52; --accent-strong:#0a2040;
+    --good:#1c7a4d; --bad:#ad3b3b;
     --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300;
-    --band:rgba(15,111,102,0.10); --focus:#0f6f66;
+    --band:rgba(15,44,82,0.08); --focus:#0f2c52;
+    --shadow:0 1px 2px rgba(13,27,42,.05), 0 4px 14px rgba(13,27,42,.04);
+    --serif:"Source Serif 4", Georgia, "Times New Roman", serif;
     --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono:"IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
       color-scheme: dark;
-      --plane:#0c0e0b; --surface:#161814; --surface-2:#1e211c;
-      --ink:#f2f3ec; --ink-2:#b8bcac; --muted:#8b8e81;
-      --hair:#2a2c26; --baseline:#3a3d35;
-      --accent:#3fb0a4; --accent-strong:#5cc7bb;
-      --good:#13b313; --bad:#e15b5b;
+      --plane:#0a0f1a; --surface:#121a2c; --surface-2:#1a2438;
+      --ink:#eef1f6; --ink-2:#b6c0d1; --muted:#7c8798;
+      --hair:#263049; --baseline:#3a4767;
+      --accent:#6f9bdc; --accent-strong:#93b8ea;
+      --good:#3fb377; --bad:#e0716c;
       --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
-      --band:rgba(63,176,164,0.13); --focus:#3fb0a4;
+      --band:rgba(111,155,220,0.14); --focus:#6f9bdc;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.24);
     }
   }
   :root[data-theme="dark"]{
     color-scheme: dark;
-    --plane:#0c0e0b; --surface:#161814; --surface-2:#1e211c;
-    --ink:#f2f3ec; --ink-2:#b8bcac; --muted:#8b8e81;
-    --hair:#2a2c26; --baseline:#3a3d35;
-    --accent:#3fb0a4; --accent-strong:#5cc7bb;
-    --good:#13b313; --bad:#e15b5b;
+    --plane:#0a0f1a; --surface:#121a2c; --surface-2:#1a2438;
+    --ink:#eef1f6; --ink-2:#b6c0d1; --muted:#7c8798;
+    --hair:#263049; --baseline:#3a4767;
+    --accent:#6f9bdc; --accent-strong:#93b8ea;
+    --good:#3fb377; --bad:#e0716c;
     --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
-    --band:rgba(63,176,164,0.13); --focus:#3fb0a4;
+    --band:rgba(111,155,220,0.14); --focus:#6f9bdc;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.24);
   }
 
   *{box-sizing:border-box}
   body{background:var(--plane);color:var(--ink);font-family:var(--sans);line-height:1.5;
     -webkit-font-smoothing:antialiased;margin:0}
-  .wrap{max-width:1120px;margin:0 auto;padding:32px 22px 56px}
+  .wrap{max-width:1120px;margin:0 auto;padding:40px 22px 56px}
 
-  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
-    color:var(--accent-strong);margin:0 0 8px}
-  h1{font-size:30px;font-weight:600;letter-spacing:-.02em;margin:0;text-wrap:balance}
-  .lede{color:var(--ink-2);font-size:14px;margin:8px 0 0;max-width:64ch}
-  .rule{height:2px;background:var(--accent);width:52px;border:0;margin:18px 0 0}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 10px;font-weight:500}
+  h1{font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:-.01em;margin:0;
+    text-wrap:balance;color:var(--ink)}
+  .lede{color:var(--ink-2);font-size:14.5px;margin:10px 0 0;max-width:64ch;line-height:1.6}
+  .rule{height:2px;background:var(--accent);width:40px;border:0;margin:20px 0 0}
 
   .banner{margin-top:16px;padding:9px 13px;border:1px solid var(--hair);border-left:3px solid var(--accent);
     border-radius:7px;background:var(--surface);font-size:12.5px;color:var(--ink-2)}
 
-  .panel{background:var(--surface);border:1px solid var(--hair);border-radius:10px}
+  .panel{background:var(--surface);border:1px solid var(--hair);border-radius:10px;box-shadow:var(--shadow)}
   .controls{margin-top:18px;padding:16px;display:flex;flex-direction:column;gap:14px}
   .ctl-row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
   .ctl-label{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
@@ -68,6 +73,8 @@
     border:1px solid var(--hair);background:var(--surface-2);color:var(--ink);cursor:pointer}
   .btn:hover{border-color:var(--baseline)}
   .btn.ghost{background:transparent}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:var(--accent-strong);border-color:var(--accent-strong)}
 
   .chips{display:flex;flex-wrap:wrap;gap:7px}
   .chip{appearance:none;font-family:var(--mono);font-size:12px;padding:5px 10px;border-radius:999px;
@@ -86,7 +93,7 @@
   .chart-card{margin-top:16px;padding:16px}
   .chart-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;justify-content:space-between;
     margin-bottom:6px}
-  .chart-head h2{font-size:15px;font-weight:600;margin:0}
+  .chart-head h2{font-family:var(--serif);font-size:18px;font-weight:600;margin:0;color:var(--ink)}
   .readout{font-family:var(--mono);font-size:11px;color:var(--muted)}
   #chart{width:100%;height:clamp(400px,55vh,520px)}
 
@@ -157,7 +164,7 @@
     <div class="ctl-row">
       <span class="ctl-label">Data</span>
       <input type="date" id="dateInput" aria-label="Escolher pregão">
-      <button class="btn" id="addDate">Adicionar</button>
+      <button class="btn primary" id="addDate">Adicionar</button>
       <button class="btn ghost" id="clearAll">Limpar</button>
     </div>
     <div class="ctl-row">
