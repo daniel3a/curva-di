@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Curva de Juros DI — B3</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    color-scheme: light;
+    --plane:#f4f4ef; --surface:#fbfbf8; --surface-2:#efefe8;
+    --ink:#14160f; --ink-2:#585b4f; --muted:#8a8d80;
+    --hair:#e2e2d7; --baseline:#c5c6b8;
+    --accent:#0f6f66; --accent-strong:#0b544c;
+    --good:#0a7d0a; --bad:#c23b3b;
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300;
+    --band:rgba(15,111,102,0.10); --focus:#0f6f66;
+    --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --plane:#0c0e0b; --surface:#161814; --surface-2:#1e211c;
+      --ink:#f2f3ec; --ink-2:#b8bcac; --muted:#8b8e81;
+      --hair:#2a2c26; --baseline:#3a3d35;
+      --accent:#3fb0a4; --accent-strong:#5cc7bb;
+      --good:#13b313; --bad:#e15b5b;
+      --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
+      --band:rgba(63,176,164,0.13); --focus:#3fb0a4;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --plane:#0c0e0b; --surface:#161814; --surface-2:#1e211c;
+    --ink:#f2f3ec; --ink-2:#b8bcac; --muted:#8b8e81;
+    --hair:#2a2c26; --baseline:#3a3d35;
+    --accent:#3fb0a4; --accent-strong:#5cc7bb;
+    --good:#13b313; --bad:#e15b5b;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
+    --band:rgba(63,176,164,0.13); --focus:#3fb0a4;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--plane);color:var(--ink);font-family:var(--sans);line-height:1.5;
+    -webkit-font-smoothing:antialiased;margin:0}
+  .wrap{max-width:1120px;margin:0 auto;padding:32px 22px 56px}
+
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent-strong);margin:0 0 8px}
+  h1{font-size:30px;font-weight:600;letter-spacing:-.02em;margin:0;text-wrap:balance}
+  .lede{color:var(--ink-2);font-size:14px;margin:8px 0 0;max-width:64ch}
+  .rule{height:2px;background:var(--accent);width:52px;border:0;margin:18px 0 0}
+
+  .banner{margin-top:16px;padding:9px 13px;border:1px solid var(--hair);border-left:3px solid var(--accent);
+    border-radius:7px;background:var(--surface);font-size:12.5px;color:var(--ink-2)}
+
+  .panel{background:var(--surface);border:1px solid var(--hair);border-radius:10px}
+  .controls{margin-top:18px;padding:16px;display:flex;flex-direction:column;gap:14px}
+  .ctl-row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+  .ctl-label{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted)}
+
+  input[type="date"]{font-family:var(--mono);font-size:13px;padding:6px 9px;border:1px solid var(--hair);
+    border-radius:7px;background:var(--surface-2);color:var(--ink)}
+  .btn{appearance:none;font-family:var(--sans);font-size:13px;padding:7px 13px;border-radius:7px;
+    border:1px solid var(--hair);background:var(--surface-2);color:var(--ink);cursor:pointer}
+  .btn:hover{border-color:var(--baseline)}
+  .btn.ghost{background:transparent}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{appearance:none;font-family:var(--mono);font-size:12px;padding:5px 10px;border-radius:999px;
+    border:1px solid var(--hair);background:var(--surface-2);color:var(--ink-2);cursor:pointer}
+  .chip:hover{border-color:var(--accent);color:var(--ink)}
+  .chip.muted{opacity:.5}
+
+  .pills{display:flex;flex-wrap:wrap;gap:8px;min-height:30px}
+  .pill{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;
+    padding:5px 8px 5px 10px;border:1px solid var(--hair);border-radius:7px;background:var(--surface-2)}
+  .pill .sw{width:9px;height:9px;border-radius:2px;flex:none}
+  .pill button{appearance:none;border:0;background:transparent;color:var(--muted);cursor:pointer;
+    font-size:14px;line-height:1;padding:0 2px}
+  .pill button:hover{color:var(--bad)}
+
+  .chart-card{margin-top:16px;padding:16px}
+  .chart-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;justify-content:space-between;
+    margin-bottom:6px}
+  .chart-head h2{font-size:15px;font-weight:600;margin:0}
+  .readout{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  #chart{width:100%;height:clamp(360px,52vh,480px)}
+
+  details.tbl{margin-top:12px}
+  details.tbl summary{font-family:var(--mono);font-size:12px;color:var(--accent-strong);cursor:pointer;
+    letter-spacing:.04em}
+  .tbl-scroll{overflow-x:auto;margin-top:10px}
+  table{border-collapse:collapse;font-family:var(--mono);font-size:12px;width:100%;
+    font-variant-numeric:tabular-nums}
+  caption{text-align:left;color:var(--muted);font-size:11px;padding-bottom:6px}
+  th,td{padding:5px 10px;text-align:right;border-bottom:1px solid var(--hair);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  thead th{color:var(--ink-2);font-weight:500;border-bottom:1px solid var(--baseline)}
+
+  .grid2{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
+  @media (min-width:780px){.grid2{grid-template-columns:1.1fr .9fr}}
+  .box{padding:16px}
+  .box h3{font-size:13px;font-weight:600;margin:0 0 10px;font-family:var(--mono);
+    letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+  .box p{margin:0 0 10px;font-size:14px}
+  .muted{color:var(--muted)}
+
+  .delta-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+  .d-chip{font-family:var(--mono);font-size:12px;padding:4px 9px;border-radius:6px;border:1px solid var(--hair);
+    display:inline-flex;gap:7px;align-items:center}
+  .d-chip .v.up{color:var(--good)} .d-chip .v.dn{color:var(--bad)}
+
+  .news li{list-style:none;padding:10px 0;border-bottom:1px solid var(--hair)}
+  .news li:last-child{border-bottom:0}
+  .news a{color:var(--ink);text-decoration:none;font-size:14px}
+  .news a:hover{color:var(--accent-strong);text-decoration:underline}
+  .src{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);display:block;margin-top:3px}
+  .tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--accent-strong);border:1px solid var(--hair);border-radius:5px;padding:2px 6px;margin-left:8px}
+
+  footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--hair);color:var(--muted);font-size:12px}
+  footer a{color:var(--accent-strong)}
+  footer code{font-family:var(--mono);font-size:11px}
+
+  a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{
+    outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--plane);
+    font-size:13px;padding:9px 15px;border-radius:8px;max-width:90vw;opacity:0;pointer-events:none;
+    transition:opacity .2s ease}
+  #toast.on{opacity:1}
+  @media (prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">B3 · Mercado de juros</p>
+  <h1>Curva de Juros DI</h1>
+  <p class="lede">Curva PRÉ (DI&nbsp;×&nbsp;Pré) da B3 — taxa em % ao ano por vértice, comparada entre pregões.
+    Escolha datas específicas, defasagens (d‑1 a d‑360) ou pregões de reunião do Copom.</p>
+  <hr class="rule">
+  <div class="banner" id="banner" hidden></div>
+
+  <div class="panel controls">
+    <div class="ctl-row">
+      <span class="ctl-label">Data</span>
+      <input type="date" id="dateInput" aria-label="Escolher pregão">
+      <button class="btn" id="addDate">Adicionar</button>
+      <button class="btn ghost" id="clearAll">Limpar</button>
+    </div>
+    <div class="ctl-row">
+      <span class="ctl-label">Comparar</span>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="ctl-row">
+      <span class="ctl-label">Selecionadas</span>
+      <div class="pills" id="pills"></div>
+    </div>
+  </div>
+
+  <div class="panel chart-card">
+    <div class="chart-head">
+      <h2>Curva PRÉ — % a.a.</h2>
+      <span class="readout" id="readout"></span>
+    </div>
+    <div id="chart"></div>
+    <details class="tbl">
+      <summary>Ver tabela de dados</summary>
+      <div class="tbl-scroll" id="tblWrap"></div>
+    </details>
+  </div>
+
+  <div class="grid2">
+    <div class="panel box">
+      <h3>Resumo do movimento</h3>
+      <div id="summary"></div>
+    </div>
+    <div class="panel box">
+      <h3>Notícias do dia <span class="tag">exemplo</span></h3>
+      <ul class="news" id="news">
+        <li><a href="https://valor.globo.com/financas/" target="_blank" rel="noopener">Juros futuros recuam com aposta em disputa eleitoral mais acirrada</a><span class="src">Valor Econômico</span></li>
+        <li><a href="https://www.infomoney.com.br/mercados/" target="_blank" rel="noopener">DIs cedem em toda a curva; mercado revisa projeção de Selic para 2027</a><span class="src">InfoMoney</span></li>
+        <li><a href="https://www.reuters.com/markets/" target="_blank" rel="noopener">Real se fortalece e reforça alívio nos vértices longos</a><span class="src">Reuters</span></li>
+      </ul>
+      <p class="muted" style="font-size:12px;margin-top:12px">Manchetes ilustrativas. Na versão final este painel é
+        alimentado automaticamente por RSS (Valor, InfoMoney, Reuters, Broadcast) — sem custo.</p>
+      <button class="btn ghost" id="genAI" style="margin-top:8px">Gerar comentário (IA)</button>
+    </div>
+  </div>
+
+  <footer>
+    Fonte: <a href="https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/consultas/mercado-de-derivativos/precos-referenciais/taxas-referenciais-bm-fbovespa/" target="_blank" rel="noopener">B3 — Taxas Referenciais BM&amp;FBOVESPA</a>,
+    curva PRÉ (DI&nbsp;×&nbsp;Pré). A B3 mantém ~1 mês on‑line; o histórico aqui é arquivado diariamente por um job agendado.
+    Dados: <code id="genInfo">data/curves.json</code>. Interpolação linear em dias corridos sobre a taxa base 252.
+  </footer>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.1/echarts.min.js"></script>
+<script>
+/* ===== fallback sintetico (usado se data/curves.json ainda nao existir) ===== */
+const FALLBACK_TENORS = [
+  {label:'1M',days:30},{label:'2M',days:60},{label:'3M',days:91},{label:'6M',days:182},
+  {label:'9M',days:273},{label:'1A',days:365},{label:'1A6M',days:548},{label:'2A',days:730},
+  {label:'3A',days:1095},{label:'4A',days:1460},{label:'5A',days:1825},{label:'7A',days:2555},
+  {label:'8A',days:2920},{label:'10A',days:3650},{label:'12A',days:4380}
+];
+function mul(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function syntheticData(){
+  const days=[]; const d=new Date(Date.UTC(2026,6,1)), end=Date.UTC(2026,8,10);
+  while(d.getTime()<=end){const wd=d.getUTCDay();if(wd!==0&&wd!==6)days.push(new Date(d));
+    d.setUTCDate(d.getUTCDate()+1);}
+  const M=days.length;
+  const curves=days.map((dt_,i)=>{
+    const fr=i/(M-1), tail=(M-1)-i;
+    let lvl=0.30*(1-fr)+0.04*Math.sin(i/5.5);
+    if(tail<15) lvl-=0.10*Math.pow((15-tail)/15,1.3);
+    const rates=FALLBACK_TENORS.map((v,vi)=>{
+      const t=v.days/365;
+      const base=13.85-0.34*Math.exp(-t/0.7)+1.02*(1-Math.exp(-t/4.2))-0.28/(1+Math.exp(-(t-12)/2.5));
+      const nz=(mul(i*1301+vi*7)()-0.5)*0.02;
+      return +(base+lvl+nz).toFixed(3);
+    });
+    return {date:dt_.toISOString().slice(0,10),rates};
+  });
+  return {tenors:FALLBACK_TENORS,curves,_synthetic:true};
+}
+
+/* ===================== carregamento de dados ===================== */
+async function loadData(){
+  try{
+    const r=await fetch('data/curves.json',{cache:'no-store'});
+    if(!r.ok) throw new Error('http '+r.status);
+    const j=await r.json();
+    if(!j.curves || !j.curves.length) throw new Error('vazio');
+    return j;
+  }catch(err){
+    const s=syntheticData(); s._reason=String(err); return s;
+  }
+}
+
+/* ============================ app ============================ */
+const $=s=>document.querySelector(s);
+const tok=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt=v=>v==null?'—':Number(v).toFixed(2).replace('.',',');
+const bps=x=>(x>=0?'+':'−')+Math.abs(x).toFixed(0);
+const avg=a=>{const f=a.filter(x=>x!=null&&!Number.isNaN(x));return f.length?f.reduce((s,x)=>s+x,0)/f.length:0;};
+const dlabel=iso=>{const [y,m,d]=iso.split('-');return `${d}/${m}/${y.slice(2)}`;};
+
+const SERIES=['--s1','--s2','--s3','--s4','--s5','--s6'];
+const MAXSEL=6;
+const OFFSETS=[['d-1',1],['d-5',5],['d-30',30],['d-45',45],['d-60',60],['d-90',90],['d-180',180],['d-360',360]];
+const COPOM=[['Copom 06/mai','2026-05-06'],['Copom 17/jun','2026-06-17'],['Copom 29/jul','2026-07-29'],
+  ['Copom 16/set','2026-09-16'],['Copom 04/nov','2026-11-04'],['Copom 09/dez','2026-12-09']];
+
+let VERT=[], CURVES=[], BYISO=new Map(), FIRST='', LAST='';
+let selected=[], chart=null;
+
+let toastT;
+function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('on');
+  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on'),3400);}
+
+function lastDate(){return CURVES[CURVES.length-1].date;}
+function resolveOffset(nDays){
+  const target=Date.parse(LAST+'T00:00:00Z')-nDays*864e5;
+  for(let i=CURVES.length-1;i>=0;i--) if(Date.parse(CURVES[i].date+'T00:00:00Z')<=target) return CURVES[i];
+  return null;
+}
+function resolvePrior(iso){
+  if(iso>LAST||iso<FIRST) return null;
+  const t=Date.parse(iso+'T00:00:00Z');
+  for(let i=CURVES.length-1;i>=0;i--) if(Date.parse(CURVES[i].date+'T00:00:00Z')<=t) return CURVES[i];
+  return null;
+}
+function addIso(iso,{snap=false}={}){
+  let c=BYISO.get(iso);
+  if(!c&&snap){c=resolvePrior(iso);if(c)toast(`Ajustado para o pregão de ${dlabel(c.date)}`);}
+  if(!c){toast('Sem pregão disponível para essa data');return;}
+  if(selected.includes(c.date)){toast(`${dlabel(c.date)} já está selecionada`);return;}
+  if(selected.length>=MAXSEL){toast(`Máximo de ${MAXSEL} curvas`);return;}
+  selected.push(c.date);refresh();
+}
+function removeIso(iso){selected=selected.filter(s=>s!==iso);refresh();}
+
+function buildChips(){
+  const box=$('#chips');box.innerHTML='';
+  const mk=(lab,resolver,noHist)=>{
+    const c=resolver();
+    const b=document.createElement('button');
+    b.className='chip'+(c?'':' muted');
+    b.textContent=lab;
+    b.title=c?`Pregão de ${dlabel(c.date)}`:noHist;
+    b.onclick=()=>c?addIso(c.date):toast(`${lab}: ${noHist}`);
+    box.appendChild(b);
+  };
+  OFFSETS.forEach(([lab,n])=>mk(lab,()=>resolveOffset(n),'sem histórico ainda (a série cresce a cada dia)'));
+  COPOM.forEach(([lab,iso])=>mk(lab,()=>resolvePrior(iso),
+    iso>LAST?'reunião futura':'sem histórico para essa data ainda'));
+}
+
+function colorFor(iso,sel){return tok(SERIES[sel.indexOf(iso)%SERIES.length]);}
+
+function renderPills(sel){
+  const box=$('#pills');box.innerHTML='';
+  if(!sel.length){box.innerHTML='<span class="muted" style="font-size:12px">nenhuma — use os atalhos acima</span>';return;}
+  sel.forEach(iso=>{
+    const el=document.createElement('span');el.className='pill';
+    el.innerHTML=`<span class="sw" style="background:${colorFor(iso,sel)}"></span>${dlabel(iso)}`;
+    const x=document.createElement('button');x.setAttribute('aria-label',`Remover ${dlabel(iso)}`);x.textContent='×';
+    x.onclick=()=>removeIso(iso);el.appendChild(x);box.appendChild(el);
+  });
+}
+
+function renderTable(sel){
+  const wrap=$('#tblWrap');
+  if(!sel.length){wrap.innerHTML='';return;}
+  const head=['Vértice',...sel.map(dlabel)];
+  if(sel.length>=2) head.push('Δ bps');
+  let html='<table><caption>Taxa PRÉ (% a.a.) por vértice</caption><thead><tr>';
+  html+=head.map(h=>`<th scope="col">${h}</th>`).join('')+'</tr></thead><tbody>';
+  VERT.forEach((v,i)=>{
+    html+=`<tr><th scope="row">${v.label}</th>`;
+    sel.forEach(s=>{html+=`<td>${fmt(BYISO.get(s).rates[i])}</td>`;});
+    if(sel.length>=2){
+      const a=BYISO.get(sel[0]).rates[i], b=BYISO.get(sel[sel.length-1]).rates[i];
+      if(a==null||b==null){html+='<td>—</td>';}
+      else{const d=(b-a)*100;html+=`<td style="color:${d<=0?tok('--good'):tok('--bad')}">${bps(d)}</td>`;}
+    }
+    html+='</tr>';
+  });
+  wrap.innerHTML=html+'</tbody></table>';
+}
+
+function renderSummary(sel){
+  const box=$('#summary');
+  if(sel.length<2){box.innerHTML='<p class="muted">Selecione ao menos duas datas para ver a variação.</p>';return;}
+  const a=BYISO.get(sel[0]), b=BYISO.get(sel[sel.length-1]);
+  const dd=VERT.map((v,i)=>({label:v.label,
+    d:(a.rates[i]!=null&&b.rates[i]!=null)?(b.rates[i]-a.rates[i])*100:null}));
+  const valid=dd.filter(x=>x.d!=null);
+  if(!valid.length){box.innerHTML='<p class="muted">Sem vértices em comum entre as datas.</p>';return;}
+  const mean=avg(valid.map(x=>x.d));
+  const li=VERT.findIndex(v=>v.label==='2A');
+  const shortAvg=avg(dd.slice(0,li+1).map(x=>x.d));
+  const longAvg=avg(dd.slice(li+1).map(x=>x.d));
+  const mx=valid.reduce((m,x)=>Math.abs(x.d)>Math.abs(m.d)?x:m);
+  const dir=mean<-1?'recuou':mean>1?'avançou':'ficou praticamente estável';
+  const keys=['3M','1A','2A','3A','5A','10A'];
+  const chips=keys.map(k=>{const row=dd.find(x=>x.label===k);if(!row||row.d==null)return '';
+    return `<span class="d-chip">${k}<span class="v ${row.d<=0?'up':'dn'}">${bps(row.d)}</span></span>`;}).join('');
+  box.innerHTML=
+    `<p>Entre <strong>${dlabel(a.date)}</strong> e <strong>${dlabel(b.date)}</strong>, a curva PRÉ
+      <strong>${dir}</strong> em média <strong>${bps(mean)} bps</strong>.</p>
+     <p class="muted" style="font-size:13px">Maior movimento: vértice <strong>${mx.label}</strong> (${bps(mx.d)} bps).
+      Curto (até 2A): ${bps(shortAvg)} bps · longo (3A+): ${bps(longAvg)} bps.</p>
+     <div class="delta-row">${chips}</div>`;
+}
+
+function renderChart(sel){
+  const ink=tok('--ink'),ink2=tok('--ink-2'),muted=tok('--muted'),hair=tok('--hair'),
+    baseCol=tok('--baseline'),surf=tok('--surface'),band=tok('--band');
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const maxIso=sel[sel.length-1];
+  const series=[];
+
+  if(sel.length>=2){
+    const mins=VERT.map((_,i)=>{const vs=sel.map(s=>BYISO.get(s).rates[i]).filter(x=>x!=null);
+      return vs.length===sel.length?Math.min(...vs):null;});
+    const rng=VERT.map((_,i)=>{const vs=sel.map(s=>BYISO.get(s).rates[i]).filter(x=>x!=null);
+      return vs.length===sel.length?Math.max(...vs)-Math.min(...vs):null;});
+    series.push({name:'__min',type:'line',data:mins,stack:'b',lineStyle:{opacity:0},symbol:'none',silent:true,z:1});
+    series.push({name:'__band',type:'line',data:rng,stack:'b',lineStyle:{opacity:0},
+      areaStyle:{color:band},symbol:'none',silent:true,z:1});
+  }
+  sel.forEach(iso=>{
+    const c=BYISO.get(iso),col=colorFor(iso,sel),emph=iso===maxIso;
+    series.push({
+      name:dlabel(iso),type:'line',data:c.rates,symbol:'none',connectNulls:false,
+      lineStyle:{width:emph?2.6:1.6,color:col},itemStyle:{color:col},emphasis:{focus:'series'},
+      endLabel:sel.length<=4?{show:true,formatter:p=>fmt(p.value),color:col,
+        fontFamily:'IBM Plex Mono, monospace',fontSize:11,fontWeight:emph?600:400}:{show:false},
+      z:emph?10:5
+    });
+  });
+
+  chart.setOption({
+    animation:!reduced,
+    grid:{left:8,right:78,top:34,bottom:56,containLabel:true},
+    tooltip:{trigger:'axis',backgroundColor:surf,borderColor:hair,borderWidth:1,
+      textStyle:{color:ink,fontSize:12},
+      formatter:ps=>{
+        const rows=ps.filter(p=>!p.seriesName.startsWith('__'));
+        const head=`<div style="font-family:var(--sans);font-weight:600;margin-bottom:4px">${ps[0].axisValue}</div>`;
+        return head+rows.map(p=>
+          `<div style="display:flex;gap:14px;align-items:center;justify-content:space-between">
+             <span style="display:flex;gap:6px;align-items:center">
+               <span style="width:8px;height:8px;border-radius:2px;background:${p.color}"></span>${p.seriesName}</span>
+             <span style="font-family:'IBM Plex Mono',monospace">${fmt(p.value)}</span></div>`).join('');
+      }},
+    xAxis:{type:'category',data:VERT.map(v=>v.label),boundaryGap:false,
+      axisLabel:{interval:0,fontSize:10,color:muted,fontFamily:'IBM Plex Mono, monospace'},
+      axisLine:{lineStyle:{color:baseCol}},axisTick:{show:false},
+      name:'Vencimento',nameLocation:'middle',nameGap:34,nameTextStyle:{color:ink2,fontSize:11}},
+    yAxis:{type:'value',scale:true,splitNumber:6,
+      axisLabel:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:11,formatter:v=>fmt(v)},
+      splitLine:{lineStyle:{color:hair}},axisLine:{show:false},axisTick:{show:false},
+      name:'% a.a.',nameGap:12,nameTextStyle:{color:ink2,fontSize:11,align:'left'}},
+    series
+  },true);
+}
+
+function refresh(){
+  const sel=[...selected].sort();
+  $('#readout').textContent=`${sel.length} curva${sel.length===1?'':'s'} · d0 = ${dlabel(LAST)}`;
+  renderPills(sel);renderChart(sel);renderSummary(sel);renderTable(sel);
+}
+
+function wire(){
+  const di=$('#dateInput');
+  di.min=FIRST;di.max=LAST;di.value=LAST;
+  $('#addDate').onclick=()=>di.value?addIso(di.value,{snap:true}):toast('Escolha uma data');
+  $('#clearAll').onclick=()=>{selected=[];refresh();};
+  $('#genAI').onclick=()=>toast('Opcional na versão final: narrativa gerada por IA (Claude). ~R$1/mês, exige chave de API.');
+  addEventListener('resize',()=>chart&&chart.resize());
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>refresh());
+  new MutationObserver(()=>refresh()).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>chart&&chart.resize());
+}
+
+(async function init(){
+  const data=await loadData();
+  VERT=data.tenors;
+  CURVES=data.curves.slice().sort((a,b)=>a.date<b.date?-1:1);
+  BYISO=new Map(CURVES.map(c=>[c.date,c]));
+  FIRST=CURVES[0].date;LAST=CURVES[CURVES.length-1].date;
+
+  const banner=$('#banner');
+  if(data._synthetic){
+    banner.hidden=false;
+    banner.innerHTML='<strong>Dados de exemplo.</strong> O coletor ainda não gerou <code>data/curves.json</code> — '
+      +'assim que o job diário rodar (ou o backfill), esta página passa a mostrar a curva real da B3.';
+    $('#genInfo').textContent='data/curves.json (ainda não gerado — exibindo exemplo)';
+  }else{
+    $('#genInfo').textContent=`data/curves.json · ${data.curves.length} pregões · atualizado ${(''+data.generated_at).slice(0,10)}`;
+  }
+
+  chart=echarts.init($('#chart'));
+  buildChips();
+  const seed=[LAST,resolveOffset(1)&&resolveOffset(1).date,resolveOffset(30)&&resolveOffset(30).date]
+    .filter(Boolean);
+  selected=[...new Set(seed)];
+  wire();
+  refresh();
+})();
+</script>
+</body>
+</html>
