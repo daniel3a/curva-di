@@ -99,7 +99,7 @@
     font-size:12px;color:var(--ink-2)}
   .chart-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
   .readout{font-family:var(--mono);font-size:11px;color:var(--muted)}
-  .chart-scroll{overflow-x:auto;overflow-y:hidden}
+  .chart-scroll{overflow-x:auto;overflow-y:hidden;display:flex;justify-content:center}
   #chart{height:clamp(400px,55vh,520px)}
 
   details.tbl{margin-top:12px}
@@ -191,7 +191,6 @@
       <span class="readout" id="readout"></span>
     </div>
     <div class="chart-scroll"><div id="chart"></div></div>
-    <p class="muted" style="font-size:11px;margin:6px 0 0">Role para o lado para ver a curva inteira — mais espaço por vértice deixa as mudanças de direção mais claras.</p>
     <details class="tbl">
       <summary>Ver tabela de dados</summary>
       <div class="tbl-scroll" id="tblWrap"></div>
@@ -451,8 +450,10 @@ function renderSummary(sel){
 }
 
 function sizeChart(elId,inst){
+  // largura menor que o card: comprime o eixo de vencimentos, deixando a inclinação
+  // de cada trecho (mudança de direção da curva) mais evidente visualmente.
   const el=document.getElementById(elId), wrap=el.parentElement;
-  const w=Math.max(wrap.clientWidth, VERT.length*26);
+  const w=Math.max(360, Math.round(wrap.clientWidth*0.55));
   el.style.width=w+'px';
   inst.resize();
 }
