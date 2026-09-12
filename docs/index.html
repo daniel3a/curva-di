@@ -93,14 +93,13 @@
   .chart-card{margin-top:16px;padding:16px}
   .chart-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:flex-start;justify-content:space-between;
     margin-bottom:10px}
-  .chart-head h2{font-family:var(--serif);font-size:18px;font-weight:600;margin:0;color:var(--ink)}
+  .chart-head h2{font-family:var(--sans);font-size:16px;font-weight:600;margin:0;color:var(--ink)}
   .chart-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:8px}
   .chart-legend span{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);
     font-size:12px;color:var(--ink-2)}
   .chart-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
   .readout{font-family:var(--mono);font-size:11px;color:var(--muted)}
-  .chart-scroll{overflow-x:auto;overflow-y:hidden;display:flex;justify-content:center}
-  #chart{height:clamp(440px,60vh,560px)}
+  #chart{width:100%;height:clamp(380px,46vh,460px)}
 
   details.tbl{margin-top:12px}
   details.tbl summary{font-family:var(--mono);font-size:12px;color:var(--accent-strong);cursor:pointer;
@@ -130,7 +129,7 @@
     color:var(--ink-2)}
   .arb-legend span{display:inline-flex;align-items:center;gap:6px}
   .arb-legend i{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
-  #arbChart{height:320px}
+  #arbChart{width:100%;height:360px}
 
   .news li{list-style:none;padding:10px 0;border-bottom:1px solid var(--hair)}
   .news li:last-child{border-bottom:0}
@@ -451,17 +450,9 @@ function renderSummary(sel){
      <div class="delta-row">${chips}</div>`;
 }
 
-function sizeChart(elId,inst){
-  const el=document.getElementById(elId), wrap=el.parentElement;
-  const w=Math.max(360, Math.round(wrap.clientWidth*0.82));
-  el.style.width=w+'px';
-  inst.resize();
-}
-
 function renderChart(sel){
-  sizeChart('chart',chart);
   const ink=tok('--ink'),ink2=tok('--ink-2'),muted=tok('--muted'),hair=tok('--hair'),
-    baseCol=tok('--baseline'),surf=tok('--surface'),band=tok('--band');
+    baseCol=tok('--baseline'),surf=tok('--surface'),band=tok('--band'),accent=tok('--accent');
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const maxIso=sel[sel.length-1];
   const series=[];
@@ -493,7 +484,15 @@ function renderChart(sel){
 
   chart.setOption({
     animation:!reduced,
-    grid:{left:8,right:78,top:34,bottom:76,containLabel:true},
+    grid:{left:8,right:78,top:34,bottom:108,containLabel:true},
+    dataZoom:[
+      {type:'inside',start:0,end:100},
+      {type:'slider',start:0,end:100,bottom:8,height:16,
+        borderColor:hair,backgroundColor:surf,fillerColor:band,
+        handleStyle:{color:accent,borderColor:accent},moveHandleStyle:{color:accent},
+        textStyle:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:9},
+        dataBackground:{lineStyle:{color:baseCol},areaStyle:{color:hair}}}
+    ],
     tooltip:{trigger:'axis',backgroundColor:surf,borderColor:hair,borderWidth:1,
       textStyle:{color:ink,fontSize:12},
       formatter:ps=>{
@@ -521,17 +520,24 @@ function renderChart(sel){
 function renderArb(iso){
   const a=BYISO.get(iso), b=B3_BYISO.get(iso);
   if(!a||!b||!arbChart) return;
-  sizeChart('arbChart',arbChart);
   const arbVals=[...a.rates,...b.rates].filter(v=>v!=null);
   const arbMin=niceMin(Math.min(...arbVals)), arbMax=niceMax(Math.max(...arbVals));
   const ink=tok('--ink'),ink2=tok('--ink-2'),muted=tok('--muted'),hair=tok('--hair'),
     baseCol=tok('--baseline'),surf=tok('--surface');
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const colA=tok('--s1'), colB=tok('--s2');
+  const colA=tok('--s1'), colB=tok('--s2'), accent=tok('--accent'), band=tok('--band');
 
   arbChart.setOption({
     animation:!reduced,
-    grid:{left:8,right:16,top:20,bottom:70,containLabel:true},
+    grid:{left:8,right:16,top:20,bottom:100,containLabel:true},
+    dataZoom:[
+      {type:'inside',start:0,end:100},
+      {type:'slider',start:0,end:100,bottom:8,height:16,
+        borderColor:hair,backgroundColor:surf,fillerColor:band,
+        handleStyle:{color:accent,borderColor:accent},moveHandleStyle:{color:accent},
+        textStyle:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:9},
+        dataBackground:{lineStyle:{color:baseCol},areaStyle:{color:hair}}}
+    ],
     tooltip:{trigger:'axis',backgroundColor:surf,borderColor:hair,borderWidth:1,textStyle:{color:ink,fontSize:12},
       formatter:ps=>{
         const head=`<div style="font-family:var(--sans);font-weight:600;margin-bottom:4px">${ps[0].axisValue}</div>`;
@@ -579,10 +585,10 @@ function wire(){
   $('#clearAll').onclick=()=>{selected=[];refresh();};
   $('#genAI').onclick=()=>toast('Opcional na versão final: narrativa gerada por IA (Claude). ~R$1/mês, exige chave de API.');
   const rerenderArb=()=>{const sel=$('#arbDate');if(sel&&sel.value)renderArb(sel.value);};
-  addEventListener('resize',()=>{chart&&sizeChart('chart',chart);arbChart&&rerenderArb();});
+  addEventListener('resize',()=>{chart&&chart.resize();arbChart&&arbChart.resize();});
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{refresh();rerenderArb();});
   new MutationObserver(()=>{refresh();rerenderArb();}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{chart&&sizeChart('chart',chart);rerenderArb();});
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{chart&&chart.resize();arbChart&&arbChart.resize();});
 }
 
 (async function init(){
