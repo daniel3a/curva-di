@@ -453,7 +453,7 @@ function sizeChart(elId,inst){
   // largura menor que o card: comprime o eixo de vencimentos, deixando a inclinação
   // de cada trecho (mudança de direção da curva) mais evidente visualmente.
   const el=document.getElementById(elId), wrap=el.parentElement;
-  const w=Math.max(360, Math.round(wrap.clientWidth*0.55));
+  const w=Math.max(360, Math.round(wrap.clientWidth*0.72));
   el.style.width=w+'px';
   inst.resize();
 }
