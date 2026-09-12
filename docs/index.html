@@ -449,17 +449,19 @@ function renderSummary(sel){
      <div class="delta-row">${chips}</div>`;
 }
 
-function sizeChart(elId,inst){
-  // largura menor que o card: comprime o eixo de vencimentos, deixando a inclinação
-  // de cada trecho (mudança de direção da curva) mais evidente visualmente.
+function sizeChart(elId,inst,ratio){
+  // largura quase igual ao card; altura calculada pela proporcao (largura/altura)
+  // para bater com o formato baixo-e-largo do grafico de referencia.
   const el=document.getElementById(elId), wrap=el.parentElement;
-  const w=Math.max(360, Math.round(wrap.clientWidth*0.82));
+  const w=Math.max(600, Math.round(wrap.clientWidth*0.98));
+  const h=Math.max(300, Math.min(460, Math.round(w/ratio)));
   el.style.width=w+'px';
+  el.style.height=h+'px';
   inst.resize();
 }
 
 function renderChart(sel){
-  sizeChart('chart',chart);
+  sizeChart('chart',chart,2.6);
   const ink=tok('--ink'),ink2=tok('--ink-2'),muted=tok('--muted'),hair=tok('--hair'),
     baseCol=tok('--baseline'),surf=tok('--surface'),band=tok('--band');
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -518,7 +520,7 @@ function renderChart(sel){
 function renderArb(iso){
   const a=BYISO.get(iso), b=B3_BYISO.get(iso);
   if(!a||!b||!arbChart) return;
-  sizeChart('arbChart',arbChart);
+  sizeChart('arbChart',arbChart,2.6);
   const ink=tok('--ink'),ink2=tok('--ink-2'),muted=tok('--muted'),hair=tok('--hair'),
     baseCol=tok('--baseline'),surf=tok('--surface');
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -574,10 +576,10 @@ function wire(){
   $('#clearAll').onclick=()=>{selected=[];refresh();};
   $('#genAI').onclick=()=>toast('Opcional na versão final: narrativa gerada por IA (Claude). ~R$1/mês, exige chave de API.');
   const rerenderArb=()=>{const sel=$('#arbDate');if(sel&&sel.value)renderArb(sel.value);};
-  addEventListener('resize',()=>{chart&&sizeChart('chart',chart);arbChart&&rerenderArb();});
+  addEventListener('resize',()=>{chart&&sizeChart('chart',chart,2.6);arbChart&&rerenderArb();});
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{refresh();rerenderArb();});
   new MutationObserver(()=>{refresh();rerenderArb();}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{chart&&sizeChart('chart',chart);rerenderArb();});
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{chart&&sizeChart('chart',chart,2.6);rerenderArb();});
 }
 
 (async function init(){
