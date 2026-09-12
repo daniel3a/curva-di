@@ -325,6 +325,8 @@ const fmt=v=>v==null?'—':Number(v).toFixed(2).replace('.',',');
 const bps=x=>(x>=0?'+':'−')+Math.abs(x).toFixed(0);
 const avg=a=>{const f=a.filter(x=>x!=null&&!Number.isNaN(x));return f.length?f.reduce((s,x)=>s+x,0)/f.length:0;};
 const dlabel=iso=>{const [y,m,d]=iso.split('-');return `${d}/${m}/${y.slice(2)}`;};
+const niceMax=v=>Math.ceil(v*10-1e-6)/10+0.10;
+const niceMin=v=>Math.floor(v*10+1e-6)/10-0.10;
 
 const SERIES=['--s1','--s2','--s3','--s4','--s5','--s6'];
 const MAXSEL=6;
@@ -464,6 +466,9 @@ function renderChart(sel){
   const maxIso=sel[sel.length-1];
   const series=[];
 
+  const allVals=sel.flatMap(iso=>BYISO.get(iso).rates).filter(v=>v!=null);
+  const yMin=niceMin(Math.min(...allVals)), yMax=niceMax(Math.max(...allVals));
+
   if(sel.length>=2){
     const mins=VERT.map((_,i)=>{const vs=sel.map(s=>BYISO.get(s).rates[i]).filter(x=>x!=null);
       return vs.length===sel.length?Math.min(...vs):null;});
@@ -503,11 +508,11 @@ function renderChart(sel){
     xAxis:{type:'category',data:VERT.map(v=>v.label),boundaryGap:false,
       axisLabel:{interval:0,rotate:55,fontSize:9,color:muted,fontFamily:'IBM Plex Mono, monospace'},
       axisLine:{lineStyle:{color:baseCol}},axisTick:{show:false},
-      splitLine:{show:true,lineStyle:{color:hair}},
+      splitLine:{show:true,lineStyle:{color:hair,opacity:.5}},
       name:'Vencimento',nameLocation:'middle',nameGap:64,nameTextStyle:{color:ink2,fontSize:11}},
-    yAxis:{type:'value',scale:true,interval:0.10,
+    yAxis:{type:'value',min:yMin,max:yMax,interval:0.10,
       axisLabel:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:11,formatter:v=>fmt(v)},
-      splitLine:{lineStyle:{color:hair}},axisLine:{show:false},axisTick:{show:false},
+      splitLine:{lineStyle:{color:hair,opacity:.5}},axisLine:{show:false},axisTick:{show:false},
       name:'% a.a.',nameGap:12,nameTextStyle:{color:ink2,fontSize:11,align:'left'}},
     series
   },true);
@@ -517,6 +522,8 @@ function renderArb(iso){
   const a=BYISO.get(iso), b=B3_BYISO.get(iso);
   if(!a||!b||!arbChart) return;
   sizeChart('arbChart',arbChart);
+  const arbVals=[...a.rates,...b.rates].filter(v=>v!=null);
+  const arbMin=niceMin(Math.min(...arbVals)), arbMax=niceMax(Math.max(...arbVals));
   const ink=tok('--ink'),ink2=tok('--ink-2'),muted=tok('--muted'),hair=tok('--hair'),
     baseCol=tok('--baseline'),surf=tok('--surface');
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -537,10 +544,10 @@ function renderArb(iso){
     xAxis:{type:'category',data:VERT.map(v=>v.label),boundaryGap:false,
       axisLabel:{interval:0,rotate:55,fontSize:9,color:muted,fontFamily:'IBM Plex Mono, monospace'},
       axisLine:{lineStyle:{color:baseCol}},axisTick:{show:false},
-      splitLine:{show:true,lineStyle:{color:hair}}},
-    yAxis:{type:'value',scale:true,interval:0.10,
+      splitLine:{show:true,lineStyle:{color:hair,opacity:.5}}},
+    yAxis:{type:'value',min:arbMin,max:arbMax,interval:0.10,
       axisLabel:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:11,formatter:v=>fmt(v)},
-      splitLine:{lineStyle:{color:hair}},axisLine:{show:false},axisTick:{show:false}},
+      splitLine:{lineStyle:{color:hair,opacity:.5}},axisLine:{show:false},axisTick:{show:false}},
     series:[
       {name:'ANBIMA (pré)',type:'line',data:a.rates,smooth:false,symbol:'circle',symbolSize:6,
         lineStyle:{width:2.8,color:colA},itemStyle:{color:colA,borderColor:surf,borderWidth:1.5}},
