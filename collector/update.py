@@ -27,6 +27,7 @@ from vertices import build_vertices
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RAW_DIR = ROOT / "docs" / "data" / "raw"
 CURVES_JSON = ROOT / "docs" / "data" / "curves.json"
+REAL_JSON = ROOT / "docs" / "data" / "curves_real.json"
 INDEX_JSON = ROOT / "docs" / "data" / "index.json"
 
 LOOKBACK_BIZ_DAYS = 45
@@ -60,14 +61,49 @@ def svensson(p: dict, t_years: float) -> float:
     return round(r * 100.0, 4)
 
 
-def raw_to_grid(raw: dict) -> list[float | None]:
-    p = raw["svensson_pref"]
-    curve_date = dt.date.fromisoformat(raw["date"])
+def _grid(p: dict, curve_date: dt.date) -> list[float | None]:
     rates = []
     for _, vdate in VERTICES:
         t_years = (vdate - curve_date).days / 365.25
         rates.append(svensson(p, t_years) if t_years > 0 else None)
     return rates
+
+
+def raw_to_grid(raw: dict) -> list[float | None]:
+    """Curva nominal (prefixada)."""
+    return _grid(raw["svensson_pref"], dt.date.fromisoformat(raw["date"]))
+
+
+# A ANBIMA nao ajusta a curva IPCA abaixo de ~126 dias uteis (~0,5 ano): nao ha NTN-B
+# curta o suficiente. Avaliar Svensson abaixo disso produz numero sem significado
+# economico (testado: juro real de 14,6% e implicita negativa no vertice de 20 dias).
+MIN_T_REAL_YEARS = 0.5
+
+
+def raw_to_grid_real(raw: dict) -> list[float | None]:
+    """Curva de juro real (IPCA+), dos parametros Svensson da curva IPCA da ANBIMA."""
+    p = raw["svensson_ipca"]
+    curve_date = dt.date.fromisoformat(raw["date"])
+    rates = []
+    for _, vdate in VERTICES:
+        t_years = (vdate - curve_date).days / 365.25
+        rates.append(svensson(p, t_years) if t_years >= MIN_T_REAL_YEARS else None)
+    return rates
+
+
+def implied_inflation(nom: list, real: list) -> list[float | None]:
+    """Inflacao implicita (breakeven), geometrica: (1+nominal)/(1+real)-1.
+
+    Mesma formula que a ANBIMA usa na coluna publicada -- conferida e batendo
+    ate a 4a casa decimal.
+    """
+    out = []
+    for n, r in zip(nom, real):
+        if n is None or r is None:
+            out.append(None)
+        else:
+            out.append(round(((1 + n / 100.0) / (1 + r / 100.0) - 1) * 100.0, 4))
+    return out
 
 
 def load_existing_dates() -> set[str]:
@@ -108,11 +144,22 @@ def collect() -> tuple[int, int]:
 def rebuild_outputs() -> int:
     files = sorted(RAW_DIR.glob("*.json"))
     curves = []
+    curves_real = []
     for p in files:
         raw = json.loads(p.read_text(encoding="utf-8"))
         if "svensson_pref" not in raw:
             continue
-        curves.append({"date": raw["date"], "rates": raw_to_grid(raw)})
+        nom = raw_to_grid(raw)
+        curves.append({"date": raw["date"], "rates": nom})
+        if "svensson_ipca" in raw:
+            real = raw_to_grid_real(raw)
+            curves_real.append(
+                {
+                    "date": raw["date"],
+                    "real": real,
+                    "implicit": implied_inflation(nom, real),
+                }
+            )
 
     now = (
         dt.datetime.now(dt.timezone.utc)
@@ -128,6 +175,22 @@ def rebuild_outputs() -> int:
                 "method": "curva Svensson (NSS) reconstruida dos parametros diarios da ANBIMA, avaliada em cada data de vencimento",
                 "tenors": [{"label": lab, "date": vdate.isoformat()} for lab, vdate in VERTICES],
                 "curves": curves,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    REAL_JSON.write_text(
+        json.dumps(
+            {
+                "generated_at": now,
+                "source": "ANBIMA - ETTJ curva IPCA (juro real) + inflacao implicita",
+                "method": "Svensson da curva IPCA avaliada em cada vencimento; implicita = (1+nominal)/(1+real)-1",
+                "nota": "A ANBIMA ajusta a curva PREFIXADA ate ~2520 dias uteis (10 anos). Alem disso, "
+                        "tanto a nominal quanto a implicita sao extrapolacao do modelo, nao mercado observado.",
+                "tenors": [{"label": lab, "date": vdate.isoformat()} for lab, vdate in VERTICES],
+                "curves": curves_real,
             },
             ensure_ascii=False,
         ),

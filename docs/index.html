@@ -130,6 +130,7 @@
   .arb-legend span{display:inline-flex;align-items:center;gap:6px}
   .arb-legend i{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
   #arbChart{width:100%;height:360px}
+  #realChart{width:100%;height:360px}
 
   .news li{list-style:none;padding:10px 0;border-bottom:1px solid var(--hair)}
   .news li:last-child{border-bottom:0}
@@ -230,12 +231,28 @@
     <div class="tbl-scroll" id="arbTable" style="margin-top:12px"></div>
   </div>
 
+  <div class="panel box" id="realBox" style="margin-top:16px" hidden>
+    <h3>Juro real e inflação implícita <span class="tag" id="realDate">—</span></h3>
+    <p class="muted" style="font-size:13px;margin:-4px 0 12px">Curva de NTN-B (IPCA+) e a inflação
+      implícita que ela embute contra a curva prefixada — apenas o pregão mais recente.</p>
+    <div class="arb-legend">
+      <span><i style="background:var(--s4)"></i>Juro real (IPCA+)</span>
+      <span><i style="background:var(--s5)"></i>Inflação implícita</span>
+    </div>
+    <div id="realChart"></div>
+    <p class="muted" id="realRead" style="font-size:13px;margin-top:10px"></p>
+  </div>
+
   <footer>
     Fonte: <a href="https://www.anbima.com.br/informacoes/est-termo/" target="_blank" rel="noopener">ANBIMA — Estrutura a Termo das Taxas de Juros</a>
     (curva prefixada / títulos públicos). A ANBIMA mantém poucas semanas on‑line; o histórico aqui é arquivado
     diariamente por um job agendado. Curva reconstruída pela fórmula de Svensson a partir dos parâmetros diários
     da ANBIMA, avaliada em cada data de vencimento (mensal até 2 anos, meses de Copom até 5 anos, anual em
     janeiro depois disso). Dados: <code id="genInfo">data/curves.json</code>.
+    A curva de juro real (IPCA+) e a inflação implícita vêm do mesmo arquivo diário da ANBIMA, pelos
+    parâmetros Svensson da curva IPCA; a implícita é geométrica, (1+nominal)/(1+real)−1. Abaixo de ~6 meses
+    a curva real não é exibida (a ANBIMA não a ajusta nesse trecho), e além de 10 anos a implícita é
+    extrapolação do modelo, sinalizada no gráfico.
     A curva B3 (DI×Pré) é importada manualmente (arquivo "Taxas de Mercado para Swaps" da
     <a href="https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/historico/boletins-diarios/pesquisa-por-pregao/pesquisa-por-pregao/" target="_blank" rel="noopener">Pesquisa por Pregão</a>
     — o download automático esbarra em proteção anti-bot).
@@ -306,6 +323,17 @@ async function loadData(){
   }
 }
 
+async function loadRealData(){
+  // opcional: curva de juro real (IPCA+) + inflacao implicita
+  if(window.__CURVES_REAL__ && window.__CURVES_REAL__.curves && window.__CURVES_REAL__.curves.length) return window.__CURVES_REAL__;
+  try{
+    const r=await fetch('data/curves_real.json',{cache:'no-store'});
+    if(!r.ok) return null;
+    const j=await r.json();
+    return (j.curves && j.curves.length) ? j : null;
+  }catch(err){ return null; }
+}
+
 async function loadB3Data(){
   // opcional: so existe depois que algum arquivo manual da B3 for importado. Sem fallback sintetico.
   if(window.__CURVES_B3__ && window.__CURVES_B3__.curves && window.__CURVES_B3__.curves.length) return window.__CURVES_B3__;
@@ -336,6 +364,7 @@ const COPOM=[['Copom 06/mai','2026-05-06'],['Copom 17/jun','2026-06-17'],['Copom
 let VERT=[], CURVES=[], BYISO=new Map(), FIRST='', LAST='';
 let selected=[], chart=null;
 let B3_BYISO=new Map(), B3_DATES=[], arbChart=null;
+let REAL_LAST=null, realChart=null;
 
 let toastT;
 function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('on');
@@ -572,6 +601,71 @@ function renderArb(iso){
   $('#arbTable').innerHTML=html+'</tbody></table>';
 }
 
+function renderReal(){
+  if(!REAL_LAST||!realChart) return;
+  const ink=tok('--ink'),ink2=tok('--ink-2'),muted=tok('--muted'),hair=tok('--hair'),
+    baseCol=tok('--baseline'),surf=tok('--surface'),accent=tok('--accent');
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const colR=tok('--s4'), colI=tok('--s5');
+  const real=REAL_LAST.real, impl=REAL_LAST.implicit;
+  const vals=[...real,...impl].filter(v=>v!=null);
+  const yMin=niceMin(Math.min(...vals)), yMax=niceMax(Math.max(...vals));
+
+  // A ANBIMA ajusta a curva prefixada so ate ~10 anos; alem disso a implicita e modelo, nao mercado.
+  const cd=Date.parse(REAL_LAST.date+'T00:00:00Z');
+  const tenYr=cd+10*365.25*864e5;
+  const xFrom=VERT.findIndex(v=>Date.parse(v.date)>tenYr);
+  const markArea= xFrom>=0 ? {silent:true,itemStyle:{color:hair,opacity:.45},
+    label:{show:true,position:'insideTop',color:muted,fontSize:9,
+      fontFamily:'IBM Plex Mono, monospace',formatter:'extrapolação'},
+    data:[[{xAxis:VERT[xFrom].label},{xAxis:VERT[VERT.length-1].label}]]} : undefined;
+
+  realChart.setOption({
+    animation:!reduced,
+    grid:{left:8,right:16,top:20,bottom:100,containLabel:true},
+    dataZoom:[
+      {type:'inside',start:0,end:100},
+      {type:'slider',start:0,end:100,bottom:8,height:16,
+        borderColor:hair,backgroundColor:surf,fillerColor:tok('--band'),
+        handleStyle:{color:accent,borderColor:accent},moveHandleStyle:{color:accent},
+        textStyle:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:9},
+        dataBackground:{lineStyle:{color:baseCol},areaStyle:{color:hair}}}
+    ],
+    tooltip:{trigger:'axis',backgroundColor:surf,borderColor:hair,borderWidth:1,
+      textStyle:{color:ink,fontSize:12},
+      formatter:ps=>{
+        const head=`<div style="font-family:var(--sans);font-weight:600;margin-bottom:4px">${ps[0].axisValue}</div>`;
+        return head+ps.map(p=>
+          `<div style="display:flex;gap:14px;align-items:center;justify-content:space-between">
+             <span style="display:flex;gap:6px;align-items:center">
+               <span style="width:8px;height:8px;border-radius:2px;background:${p.color}"></span>${p.seriesName}</span>
+             <span style="font-family:'IBM Plex Mono',monospace">${fmt(p.value)}</span></div>`).join('');
+      }},
+    xAxis:{type:'category',data:VERT.map(v=>v.label),boundaryGap:false,
+      axisLabel:{interval:0,rotate:55,fontSize:9,color:muted,fontFamily:'IBM Plex Mono, monospace'},
+      axisLine:{lineStyle:{color:baseCol}},axisTick:{show:false},
+      splitLine:{show:true,lineStyle:{color:hair,opacity:.5}}},
+    yAxis:{type:'value',min:yMin,max:yMax,interval:0.20,
+      axisLabel:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:11,formatter:v=>fmt(v)},
+      splitLine:{lineStyle:{color:hair,opacity:.5}},axisLine:{show:false},axisTick:{show:false},
+      name:'% a.a.',nameGap:12,nameTextStyle:{color:ink2,fontSize:11,align:'left'}},
+    series:[
+      {name:'Juro real (IPCA+)',type:'line',data:real,smooth:false,connectNulls:false,
+        symbol:'circle',symbolSize:6,lineStyle:{width:2.8,color:colR},
+        itemStyle:{color:colR,borderColor:surf,borderWidth:1.5},markArea},
+      {name:'Inflação implícita',type:'line',data:impl,smooth:false,connectNulls:false,
+        symbol:'circle',symbolSize:6,lineStyle:{width:2.8,color:colI},
+        itemStyle:{color:colI,borderColor:surf,borderWidth:1.5}}
+    ]
+  },true);
+
+  const pick=m=>{const i=nearestVertexIndex(m);
+    return {lab:VERT[i].label,r:real[i],im:impl[i]};};
+  const a=pick(12), b=pick(60), c=pick(120);
+  const seg=x=>x.r==null?`${x.lab}: —`:`${x.lab}: real ${fmt(x.r)}% · implícita ${fmt(x.im)}%`;
+  $('#realRead').innerHTML=`${seg(a)} &nbsp;·&nbsp; ${seg(b)} &nbsp;·&nbsp; ${seg(c)}`;
+}
+
 function refresh(){
   const sel=[...selected].sort();
   $('#readout').textContent=`${sel.length} curva${sel.length===1?'':'s'} · d0 = ${dlabel(LAST)}`;
@@ -585,14 +679,15 @@ function wire(){
   $('#clearAll').onclick=()=>{selected=[];refresh();};
   $('#genAI').onclick=()=>toast('Opcional na versão final: narrativa gerada por IA (Claude). ~R$1/mês, exige chave de API.');
   const rerenderArb=()=>{const sel=$('#arbDate');if(sel&&sel.value)renderArb(sel.value);};
-  addEventListener('resize',()=>{chart&&chart.resize();arbChart&&arbChart.resize();});
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{refresh();rerenderArb();});
-  new MutationObserver(()=>{refresh();rerenderArb();}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{chart&&chart.resize();arbChart&&arbChart.resize();});
+  const resizeAll=()=>{chart&&chart.resize();arbChart&&arbChart.resize();realChart&&realChart.resize();};
+  addEventListener('resize',resizeAll);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{refresh();rerenderArb();renderReal();});
+  new MutationObserver(()=>{refresh();rerenderArb();renderReal();}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(resizeAll);
 }
 
 (async function init(){
-  const [data,b3data]=await Promise.all([loadData(),loadB3Data()]);
+  const [data,b3data,realdata]=await Promise.all([loadData(),loadB3Data(),loadRealData()]);
   VERT=data.tenors;
   CURVES=data.curves.slice().sort((a,b)=>a.date<b.date?-1:1);
   BYISO=new Map(CURVES.map(c=>[c.date,c]));
@@ -624,6 +719,14 @@ function wire(){
     arbChart=echarts.init($('#arbChart'));
     sel.onchange=()=>renderArb(sel.value);
     renderArb(sel.value);
+  }
+
+  if(realdata && realdata.curves.length){
+    REAL_LAST=realdata.curves.slice().sort((a,b)=>a.date<b.date?-1:1).pop();
+    $('#realBox').hidden=false;
+    $('#realDate').textContent=dlabel(REAL_LAST.date);
+    realChart=echarts.init($('#realChart'));
+    renderReal();
   }
 
   wire();
