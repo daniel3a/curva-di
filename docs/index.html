@@ -15,6 +15,7 @@
     --accent:#0f2c52; --accent-strong:#0a2040;
     --good:#1c7a4d; --bad:#ad3b3b;
     --s1:#2255a4; --s2:#a5294a; --s3:#c9962c; --s4:#1f7a52; --s5:#6d3a86; --s6:#b5542e;
+    --dec-real:#2255a4; --dec-ipca:#b8860b;
     --band:rgba(15,44,82,0.08); --focus:#0f2c52;
     --shadow:0 1px 2px rgba(13,27,42,.05), 0 4px 14px rgba(13,27,42,.04);
     --serif:"Source Serif 4", Georgia, "Times New Roman", serif;
@@ -30,6 +31,7 @@
       --accent:#6f9bdc; --accent-strong:#93b8ea;
       --good:#3fb377; --bad:#e0716c;
       --s1:#3f74c9; --s2:#c04563; --s3:#b8860b; --s4:#2f9a6a; --s5:#8f5aa8; --s6:#b5542e;
+      --dec-real:#3f74c9; --dec-ipca:#b8860b;
       --band:rgba(111,155,220,0.14); --focus:#6f9bdc;
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.24);
     }
@@ -42,6 +44,7 @@
     --accent:#6f9bdc; --accent-strong:#93b8ea;
     --good:#3fb377; --bad:#e0716c;
     --s1:#3f74c9; --s2:#c04563; --s3:#b8860b; --s4:#2f9a6a; --s5:#8f5aa8; --s6:#b5542e;
+    --dec-real:#3f74c9; --dec-ipca:#b8860b;
     --band:rgba(111,155,220,0.14); --focus:#6f9bdc;
     --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.24);
   }
@@ -129,6 +132,7 @@
     color:var(--ink-2)}
   .arb-legend span{display:inline-flex;align-items:center;gap:6px}
   .arb-legend i{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
+  .arb-legend i.dash{width:16px;height:0;border-radius:0;border-top:2px dashed var(--ink-2)}
   #arbChart{width:100%;height:360px}
   #realChart{width:100%;height:360px}
 
@@ -233,11 +237,12 @@
 
   <div class="panel box" id="realBox" style="margin-top:16px" hidden>
     <h3>Juro real e inflação implícita <span class="tag" id="realDate">—</span></h3>
-    <p class="muted" style="font-size:13px;margin:-4px 0 12px">Curva de NTN-B (IPCA+) e a inflação
-      implícita que ela embute contra a curva prefixada — apenas o pregão mais recente.</p>
+    <p class="muted" style="font-size:13px;margin:-4px 0 12px">Decomposição da taxa nominal em suas duas
+      partes — inflação implícita na base, juro real por cima. Apenas o pregão mais recente.</p>
     <div class="arb-legend">
-      <span><i style="background:var(--s4)"></i>Juro real (IPCA+)</span>
-      <span><i style="background:var(--s5)"></i>Inflação implícita</span>
+      <span><i style="background:var(--dec-real)"></i>Juro real (IPCA+)</span>
+      <span><i style="background:var(--dec-ipca)"></i>Inflação implícita</span>
+      <span><i class="dash"></i>Nominal (prefixada)</span>
     </div>
     <div id="realChart"></div>
     <p class="muted" id="realRead" style="font-size:13px;margin-top:10px"></p>
@@ -606,10 +611,13 @@ function renderReal(){
   const ink=tok('--ink'),ink2=tok('--ink-2'),muted=tok('--muted'),hair=tok('--hair'),
     baseCol=tok('--baseline'),surf=tok('--surface'),accent=tok('--accent');
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const colR=tok('--s4'), colI=tok('--s5');
+  const colR=tok('--dec-real'), colI=tok('--dec-ipca');
   const real=REAL_LAST.real, impl=REAL_LAST.implicit;
-  const vals=[...real,...impl].filter(v=>v!=null);
-  const yMin=niceMin(Math.min(...vals)), yMax=niceMax(Math.max(...vals));
+  const nomCurve=BYISO.get(REAL_LAST.date);
+  const nom=nomCurve?nomCurve.rates:[];
+  // area empilhada representa proporcao: a base precisa ser zero, senao o tamanho das faixas mente
+  const topVals=[...nom,...real.map((r,i)=>r!=null&&impl[i]!=null?r+impl[i]:null)].filter(v=>v!=null);
+  const yMax=niceMax(Math.max(...topVals));
 
   // A ANBIMA ajusta a curva prefixada so ate ~10 anos; alem disso a implicita e modelo, nao mercado.
   const cd=Date.parse(REAL_LAST.date+'T00:00:00Z');
@@ -645,25 +653,31 @@ function renderReal(){
       axisLabel:{interval:0,rotate:55,fontSize:9,color:muted,fontFamily:'IBM Plex Mono, monospace'},
       axisLine:{lineStyle:{color:baseCol}},axisTick:{show:false},
       splitLine:{show:true,lineStyle:{color:hair,opacity:.5}}},
-    yAxis:{type:'value',min:yMin,max:yMax,interval:0.20,
+    yAxis:{type:'value',min:0,max:yMax,interval:2,
       axisLabel:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:11,formatter:v=>fmt(v)},
       splitLine:{lineStyle:{color:hair,opacity:.5}},axisLine:{show:false},axisTick:{show:false},
       name:'% a.a.',nameGap:12,nameTextStyle:{color:ink2,fontSize:11,align:'left'}},
     series:[
-      {name:'Juro real (IPCA+)',type:'line',data:real,smooth:false,connectNulls:false,
-        symbol:'circle',symbolSize:6,lineStyle:{width:2.8,color:colR},
-        itemStyle:{color:colR,borderColor:surf,borderWidth:1.5},markArea},
-      {name:'Inflação implícita',type:'line',data:impl,smooth:false,connectNulls:false,
-        symbol:'circle',symbolSize:6,lineStyle:{width:2.8,color:colI},
-        itemStyle:{color:colI,borderColor:surf,borderWidth:1.5}}
+      {name:'Inflação implícita',type:'line',data:impl,stack:'dec',smooth:false,connectNulls:false,
+        symbol:'none',lineStyle:{width:1.4,color:colI},itemStyle:{color:colI},
+        areaStyle:{color:colI,opacity:.62},markArea},
+      {name:'Juro real (IPCA+)',type:'line',data:real,stack:'dec',smooth:false,connectNulls:false,
+        symbol:'none',lineStyle:{width:1.4,color:colR},itemStyle:{color:colR},
+        areaStyle:{color:colR,opacity:.62}},
+      {name:'Nominal (prefixada)',type:'line',data:nom,smooth:false,connectNulls:false,
+        symbol:'none',lineStyle:{width:1.8,color:ink2,type:'dashed'},itemStyle:{color:ink2},z:10}
     ]
   },true);
 
   const pick=m=>{const i=nearestVertexIndex(m);
-    return {lab:VERT[i].label,r:real[i],im:impl[i]};};
-  const a=pick(12), b=pick(60), c=pick(120);
-  const seg=x=>x.r==null?`${x.lab}: —`:`${x.lab}: real ${fmt(x.r)}% · implícita ${fmt(x.im)}%`;
-  $('#realRead').innerHTML=`${seg(a)} &nbsp;·&nbsp; ${seg(b)} &nbsp;·&nbsp; ${seg(c)}`;
+    return {lab:VERT[i].label,r:real[i],im:impl[i],n:nom[i]};};
+  const seg=x=>x.r==null?`<strong>${x.lab}</strong> —`
+    :`<strong>${x.lab}</strong> nominal ${fmt(x.n)} · real ${fmt(x.r)} · implícita ${fmt(x.im)}`;
+  $('#realRead').innerHTML=
+    [pick(12),pick(60),pick(120)].map(seg).join(' &nbsp;|&nbsp; ')
+    + '<br><span style="opacity:.8">A composição é geométrica — (1+nominal) = (1+real)×(1+implícita) — '
+    + 'então a soma das duas faixas fica um pouco <em>abaixo</em> da linha nominal. A diferença é o termo '
+    + 'cruzado (real × implícita), da ordem de 0,4 p.p. nos níveis atuais.</span>';
 }
 
 function refresh(){
