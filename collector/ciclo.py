@@ -85,6 +85,23 @@ def yoy(points: list[tuple[dt.date, float]]) -> list[tuple[dt.date, float]]:
     return out
 
 
+def to_monthly(points: list[tuple[dt.date, float]]) -> list[tuple[dt.date, float]]:
+    """Reamostra para mensal, pegando a ultima observacao de cada mes.
+
+    Sem isso, series diarias entram no z-score com ~2.500 observacoes e series
+    mensais com ~120. Alem de nao serem amostras comparaveis, a diaria e dominada
+    por autocorrelacao: o desvio-padrao reflete quanto tempo a taxa ficou em cada
+    nivel, nao quantas vezes ela mudou. O painel le ciclo em cadencia mensal, entao
+    todas as series sao comparadas em cadencia mensal.
+    """
+    by_month: dict[tuple[int, int], tuple[dt.date, float]] = {}
+    for d, v in points:
+        key = (d.year, d.month)
+        if key not in by_month or d > by_month[key][0]:
+            by_month[key] = (d, v)
+    return [by_month[k] for k in sorted(by_month)]
+
+
 def zscore(values: list[float]) -> float | None:
     if len(values) < 12:
         return None
@@ -100,15 +117,29 @@ def build_one(spec: dict) -> dict:
     if not pts:
         raise RuntimeError(f"serie {spec['code']} voltou vazia")
 
+    # "ultimo" e sempre a observacao mais recente de verdade (diaria, se for o caso);
+    # o z-score, esse sim, e calculado em cadencia mensal para todas as series.
     last_date, last_value = pts[-1]
     lag_days = (dt.date.today() - last_date).days
     stale = lag_days > spec["max_lag"]
 
-    base = yoy(pts) if spec["transform"] == "yoy" else pts
-    z = zscore([v for _, v in base]) if base else None
+    monthly = to_monthly(pts)
+    base = yoy(monthly) if spec["transform"] == "yoy" else monthly
+    vals = [v for _, v in base]
+    z = zscore(vals) if vals else None
+
+    stats = None
+    if len(vals) >= 12:
+        stats = {
+            "n": len(vals),
+            "mean": round(statistics.fmean(vals), 4),
+            "sd": round(statistics.pstdev(vals), 4),
+            "start": base[0][0].isoformat(),
+            "end": base[-1][0].isoformat(),
+        }
 
     # variacao em 12 meses, sempre (para exibir), independente do transform
-    y = yoy(pts)
+    y = yoy(monthly)
     chg12 = round(y[-1][1], 2) if y else None
 
     hist = base[-HISTORY_POINTS:]
@@ -124,6 +155,7 @@ def build_one(spec: dict) -> dict:
         "lag_days": lag_days,
         "stale": stale,
         "z": z,
+        "stats": stats,   # n / media / desvio / janela -- para o z ser auditavel pelo arquivo
         "chg12m": chg12,
         "history": [[d.isoformat(), round(v, 4)] for d, v in hist],
     }

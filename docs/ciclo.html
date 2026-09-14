@@ -138,9 +138,12 @@
     Fonte: <a href="https://dadosabertos.bcb.gov.br/" target="_blank" rel="noopener">Banco Central do Brasil — SGS</a>,
     coletado diariamente pelo mesmo job do <a href="index.html">painel de curva</a>. Dados:
     <code id="genInfo">data/ciclo.json</code>.
-    Z-score sobre 10 anos; séries com tendência (índices, saldos, câmbio) usam variação em 12 meses como
-    base, porque z-score de nível numa série que cresce marca "extremo" o tempo todo e não informa ciclo.
-    Toda série carrega limite de defasagem — o SGS descontinua séries em silêncio.
+    Z-score sobre ~10 anos, sempre em cadência mensal (séries diárias são reamostradas para o último
+    dia de cada mês, senão entrariam com 2.500 observações contra 120 das mensais — amostras não
+    comparáveis). Séries com tendência (índices, saldos, câmbio) usam variação em 12 meses como base,
+    porque z-score de nível numa série que cresce marca "extremo" o tempo todo e não informa ciclo.
+    A coluna <em>Amostra</em> traz média, desvio e n de cada série: <code>z = (último − μ) / σ</code>,
+    conferível na mão. Toda série carrega limite de defasagem — o SGS descontinua séries em silêncio.
   </footer>
 </div>
 
@@ -219,11 +222,14 @@ function renderChart(){
 function renderTable(){
   const byBlock=Object.fromEntries(DATA.blocks.map(b=>[b.id,b.label]));
   let html='<table><thead><tr><th>Série</th><th>Bloco</th><th>Último</th><th>Data</th>'
-    +'<th>z</th><th>Δ 12m</th><th>Base</th><th></th></tr></thead><tbody>';
+    +'<th>z</th><th>Δ 12m</th><th>Base</th><th>Amostra (μ ± σ, n)</th><th></th></tr></thead><tbody>';
   DATA.series.forEach(s=>{
     const zc=s.z==null?'':(s.z*s.orient>0?'pos':(s.z*s.orient<0?'neg':''));
     const flag=s.stale?'<span class="chip alert">defasada</span>'
       :(s.orient===0?'<span class="chip">ambígua</span>':'');
+    const st=s.stats;
+    const amostra=st?`${num(st.mean)} ± ${num(st.sd)} · n=${st.n}`
+      +`<br><span class="muted" style="font-size:10px">${dlabel(st.start)}–${dlabel(st.end)}</span>`:'—';
     html+=`<tr>
       <td>${s.name}<br><span class="muted" style="font-size:10.5px">SGS ${s.code} · ${s.unit}</span></td>
       <td>${byBlock[s.block]||s.block}</td>
@@ -232,6 +238,7 @@ function renderTable(){
       <td class="${zc}">${s.z==null?'—':(s.z>0?'+':'')+num(s.z)}</td>
       <td>${s.chg12m==null?'—':(s.chg12m>0?'+':'')+num(s.chg12m)+'%'}</td>
       <td class="muted">${s.transform==='yoy'?'var. 12m':'nível'}</td>
+      <td class="muted">${amostra}</td>
       <td>${flag}</td></tr>`;
   });
   $('#tbl').innerHTML=html+'</tbody></table>';
