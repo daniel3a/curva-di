@@ -23,27 +23,33 @@ Campos:
 from __future__ import annotations
 
 BLOCKS = [
-    ("atividade", "Atividade e juros"),
+    ("atividade", "Atividade"),
+    ("juros", "Juros e inflação"),
     ("credito", "Crédito e estresse"),
     ("imobiliario", "Imobiliário"),
     ("cambio", "Câmbio"),
 ]
 
 SERIES = [
-    # --- atividade e juros -------------------------------------------------
-    # IBC-Br sai com ~50 dias de defasagem; as vesperas da proxima divulgacao a
-    # observacao mais recente chega a ~110 dias de idade sem que haja problema algum.
+    # --- atividade ---------------------------------------------------------
+    # Bloco deliberadamente magro por enquanto: so o IBC-Br tem API publica no BCB.
+    # Emprego (CAGED), PIB (IBGE/SIDRA) e confianca (FGV) entram quando abrirmos
+    # outras fontes. Ate la, este termometro le atividade por uma serie so -- o que
+    # esta declarado na pagina, para ninguem confundir com leitura robusta.
     dict(code=24363, name="IBC-Br (dessazonalizado)", block="atividade",
          unit="índice", freq="mensal", transform="yoy", orient=+1, max_lag=125),
-    dict(code=432, name="Meta Selic (Copom)", block="atividade",
+
+    # --- juros e inflacao --------------------------------------------------
+    # A Selic efetiva (1178) foi removida: depois que o z-score passou a ser
+    # calculado em cadencia mensal, a unica vantagem dela sobre a meta (leitura
+    # diaria) deixou de existir, e manter as duas dobrava o peso de "juros" no bloco.
+    dict(code=432, name="Meta Selic (Copom)", block="juros",
          unit="% a.a.", freq="reuniao", transform="level", orient=-1, max_lag=120),
-    dict(code=1178, name="Selic efetiva anualizada", block="atividade",
-         unit="% a.a.", freq="diaria", transform="level", orient=-1, max_lag=12),
-    dict(code=13522, name="IPCA acumulado em 12 meses", block="atividade",
+    dict(code=13522, name="IPCA acumulado em 12 meses", block="juros",
          unit="%", freq="mensal", transform="level", orient=-1, max_lag=75),
-    dict(code=433, name="IPCA no mês", block="atividade",
+    dict(code=433, name="IPCA no mês", block="juros",
          unit="%", freq="mensal", transform="level", orient=-1, max_lag=75),
-    dict(code=189, name="IGP-M no mês", block="atividade",
+    dict(code=189, name="IGP-M no mês", block="juros",
          unit="%", freq="mensal", transform="level", orient=-1, max_lag=75),
 
     # --- credito e estresse ------------------------------------------------

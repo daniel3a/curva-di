@@ -116,7 +116,9 @@
   <p class="lede">Onde estamos no ciclo, lido por blocos. Cada série é normalizada em z-score contra os
     próprios 10 anos e orientada para que <strong>positivo signifique favorável ao ciclo</strong>. O
     termômetro do bloco é a média dessas leituras — não um índice único, porque o que interessa é
-    justamente saber se os blocos estão se movendo juntos.</p>
+    justamente saber se os blocos estão se movendo juntos. Blocos marcados como
+    <span class="chip alert">base estreita</span> hoje se apoiam numa série só: são indicativos, não
+    leitura robusta, e é onde a expansão de fontes mais agrega.</p>
   <hr class="rule">
   <div class="banner" id="banner" hidden></div>
 
@@ -185,7 +187,8 @@ function renderThermos(){
        <div class="val" style="color:${col}">${b.score==null?'—':(b.score>0?'+':'')+num(b.score)}</div>
        <div class="word">${word(b.score)}</div>
        <div class="bar"><i style="left:${left}%;width:${Math.abs(pct)}%;background:${col}"></i></div>
-       <div class="n">${b.n} série${b.n===1?'':'s'} no termômetro</div>`;
+       <div class="n">${b.n} série${b.n===1?'':'s'} no termômetro${b.n<=1&&b.n>0
+         ? ' <span class="chip alert" style="margin-left:4px">base estreita</span>':''}</div>`;
     box.appendChild(el);
   });
 }
