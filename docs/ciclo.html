@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de Ciclo</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
+<style>
+  :root{
+    color-scheme: light;
+    --plane:#f7f8fa; --surface:#ffffff; --surface-2:#eef1f5;
+    --ink:#0d1b2a; --ink-2:#48566b; --muted:#8993a3;
+    --hair:#e2e6ed; --baseline:#c8d0db;
+    --accent:#0f2c52; --accent-strong:#0a2040;
+    --good:#1c7a4d; --bad:#a5294a; --neutral:#8993a3;
+    --band:rgba(15,44,82,0.08); --focus:#0f2c52;
+    --shadow:0 1px 2px rgba(13,27,42,.05), 0 4px 14px rgba(13,27,42,.04);
+    --serif:"Source Serif 4", Georgia, serif;
+    --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --plane:#0a0f1a; --surface:#121a2c; --surface-2:#1a2438;
+      --ink:#eef1f6; --ink-2:#b6c0d1; --muted:#7c8798;
+      --hair:#263049; --baseline:#3a4767;
+      --accent:#6f9bdc; --accent-strong:#93b8ea;
+      --good:#3fb377; --bad:#d9647f; --neutral:#7c8798;
+      --band:rgba(111,155,220,0.14); --focus:#6f9bdc;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.24);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --plane:#0a0f1a; --surface:#121a2c; --surface-2:#1a2438;
+    --ink:#eef1f6; --ink-2:#b6c0d1; --muted:#7c8798;
+    --hair:#263049; --baseline:#3a4767;
+    --accent:#6f9bdc; --accent-strong:#93b8ea;
+    --good:#3fb377; --bad:#d9647f; --neutral:#7c8798;
+    --band:rgba(111,155,220,0.14); --focus:#6f9bdc;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.24);
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--plane);color:var(--ink);font-family:var(--sans);line-height:1.55;
+    margin:0;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px;margin:0 auto;padding:28px 22px 56px}
+
+  nav{display:flex;gap:4px;margin-bottom:28px;font-family:var(--mono);font-size:12px}
+  nav a{padding:6px 12px;border-radius:7px;text-decoration:none;color:var(--ink-2);
+    border:1px solid transparent}
+  nav a:hover{background:var(--surface-2);color:var(--ink)}
+  nav a[aria-current="page"]{background:var(--accent);color:#fff}
+
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 10px}
+  h1{font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:-.01em;margin:0}
+  .lede{color:var(--ink-2);font-size:14.5px;margin:10px 0 0;max-width:70ch;line-height:1.6}
+  .rule{height:2px;background:var(--accent);width:40px;border:0;margin:20px 0 0}
+
+  .banner{margin-top:16px;padding:9px 13px;border:1px solid var(--hair);border-left:3px solid var(--bad);
+    border-radius:7px;background:var(--surface);font-size:12.5px;color:var(--ink-2)}
+
+  .panel{background:var(--surface);border:1px solid var(--hair);border-radius:10px;box-shadow:var(--shadow)}
+  .box{padding:16px}
+  .box h2{font-family:var(--sans);font-size:16px;font-weight:600;margin:0 0 4px}
+  .box h3{font-size:13px;font-weight:600;margin:0 0 10px;font-family:var(--mono);
+    letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+  .muted{color:var(--muted)}
+
+  .thermos{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:22px}
+  .th{padding:16px}
+  .th .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted)}
+  .th .val{font-size:34px;font-weight:600;font-family:var(--mono);line-height:1.1;margin-top:8px;
+    font-variant-numeric:tabular-nums}
+  .th .word{font-size:13.5px;margin-top:2px;color:var(--ink-2)}
+  .th .bar{height:5px;border-radius:3px;background:var(--surface-2);margin-top:12px;position:relative;
+    overflow:hidden}
+  .th .bar i{position:absolute;top:0;bottom:0;display:block;border-radius:3px}
+  .th .n{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:8px}
+
+  .chart-card{margin-top:18px;padding:16px}
+  #zChart{width:100%;height:440px}
+
+  .tbl-scroll{overflow-x:auto;margin-top:10px}
+  table{border-collapse:collapse;font-family:var(--mono);font-size:12px;width:100%;
+    font-variant-numeric:tabular-nums}
+  th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--hair);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left;white-space:normal;min-width:200px}
+  thead th{color:var(--ink-2);font-weight:500;border-bottom:1px solid var(--baseline);
+    font-size:10.5px;letter-spacing:.05em;text-transform:uppercase}
+  .pos{color:var(--good)} .neg{color:var(--bad)}
+  .chip{display:inline-block;font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;
+    padding:2px 6px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
+  .chip.alert{background:color-mix(in srgb, var(--bad) 16%, transparent);color:var(--bad)}
+
+  footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--hair);color:var(--muted);
+    font-size:12px;line-height:1.6}
+  footer a{color:var(--accent-strong)}
+  footer code{font-family:var(--mono);font-size:11px}
+  a:focus-visible,button:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a href="index.html">Curva de juros</a>
+    <a href="ciclo.html" aria-current="page">Painel de ciclo</a>
+  </nav>
+
+  <p class="eyebrow">ENFORCE · Macro</p>
+  <h1>Painel de Ciclo</h1>
+  <p class="lede">Onde estamos no ciclo, lido por blocos. Cada série é normalizada em z-score contra os
+    próprios 10 anos e orientada para que <strong>positivo signifique favorável ao ciclo</strong>. O
+    termômetro do bloco é a média dessas leituras — não um índice único, porque o que interessa é
+    justamente saber se os blocos estão se movendo juntos.</p>
+  <hr class="rule">
+  <div class="banner" id="banner" hidden></div>
+
+  <div class="thermos" id="thermos"></div>
+
+  <div class="panel chart-card">
+    <h2>Contribuição por série</h2>
+    <p class="muted" style="font-size:12.5px;margin:2px 0 0">Z-score já orientado: à direita, favorável
+      ao ciclo; à esquerda, desfavorável. Séries ambíguas ficam de fora deste gráfico e aparecem na tabela.</p>
+    <div id="zChart"></div>
+  </div>
+
+  <div class="panel box" style="margin-top:18px">
+    <h3>Séries</h3>
+    <div class="tbl-scroll" id="tbl"></div>
+  </div>
+
+  <footer>
+    Fonte: <a href="https://dadosabertos.bcb.gov.br/" target="_blank" rel="noopener">Banco Central do Brasil — SGS</a>,
+    coletado diariamente pelo mesmo job do <a href="index.html">painel de curva</a>. Dados:
+    <code id="genInfo">data/ciclo.json</code>.
+    Z-score sobre 10 anos; séries com tendência (índices, saldos, câmbio) usam variação em 12 meses como
+    base, porque z-score de nível numa série que cresce marca "extremo" o tempo todo e não informa ciclo.
+    Toda série carrega limite de defasagem — o SGS descontinua séries em silêncio.
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const tok=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const num=(v,d=2)=>v==null?'—':Number(v).toFixed(d).replace('.',',');
+const dlabel=iso=>{const [y,m,d]=iso.split('-');return `${d}/${m}/${y.slice(2)}`;};
+
+let DATA=null, zChart=null;
+
+function word(z){
+  if(z==null) return 'sem leitura';
+  if(z>=1) return 'bem acima da média';
+  if(z>=0.3) return 'acima da média';
+  if(z>-0.3) return 'em torno da média';
+  if(z>-1) return 'abaixo da média';
+  return 'bem abaixo da média';
+}
+function toneColor(z){
+  if(z==null) return tok('--neutral');
+  if(z>0.3) return tok('--good');
+  if(z<-0.3) return tok('--bad');
+  return tok('--neutral');
+}
+
+function renderThermos(){
+  const box=$('#thermos'); box.innerHTML='';
+  DATA.blocks.forEach(b=>{
+    const col=toneColor(b.score);
+    // barra divergente: centro = 0, escala ate |2|
+    const pct=b.score==null?0:Math.max(-1,Math.min(1,b.score/2))*50;
+    const left=b.score==null?50:(b.score>=0?50:50+pct);
+    const el=document.createElement('div');
+    el.className='panel th';
+    el.innerHTML=
+      `<div class="lbl">${b.label}</div>
+       <div class="val" style="color:${col}">${b.score==null?'—':(b.score>0?'+':'')+num(b.score)}</div>
+       <div class="word">${word(b.score)}</div>
+       <div class="bar"><i style="left:${left}%;width:${Math.abs(pct)}%;background:${col}"></i></div>
+       <div class="n">${b.n} série${b.n===1?'':'s'} no termômetro</div>`;
+    box.appendChild(el);
+  });
+}
+
+function renderChart(){
+  const ink=tok('--ink'),muted=tok('--muted'),hair=tok('--hair'),
+    baseCol=tok('--baseline'),surf=tok('--surface');
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const rows=DATA.series.filter(s=>s.z!=null&&s.orient!==0&&!s.stale)
+    .map(s=>({name:s.name,v:+(s.z*s.orient).toFixed(2)}))
+    .sort((a,b)=>a.v-b.v);
+  zChart.setOption({
+    animation:!reduced,
+    grid:{left:8,right:34,top:14,bottom:28,containLabel:true},
+    tooltip:{trigger:'item',backgroundColor:surf,borderColor:hair,borderWidth:1,
+      textStyle:{color:ink,fontSize:12},
+      formatter:p=>`<div style="font-weight:600;margin-bottom:3px">${p.name}</div>
+        <span style="font-family:'IBM Plex Mono',monospace">z orientado ${num(p.value)}</span>`},
+    xAxis:{type:'value',min:-3,max:3,interval:1,
+      axisLabel:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:11},
+      splitLine:{lineStyle:{color:hair,opacity:.5}},axisLine:{show:false},axisTick:{show:false}},
+    yAxis:{type:'category',data:rows.map(r=>r.name),
+      axisLabel:{color:muted,fontFamily:'IBM Plex Mono, monospace',fontSize:10.5},
+      axisLine:{lineStyle:{color:baseCol}},axisTick:{show:false},splitLine:{show:false}},
+    series:[{type:'bar',data:rows.map(r=>({value:r.v,
+        itemStyle:{color:r.v>=0?tok('--good'):tok('--bad'),
+          borderRadius:r.v>=0?[0,4,4,0]:[4,0,0,4]}})),
+      barMaxWidth:16,
+      markLine:{silent:true,symbol:'none',data:[{xAxis:0}],
+        lineStyle:{color:baseCol,width:1},label:{show:false}}}]
+  },true);
+}
+
+function renderTable(){
+  const byBlock=Object.fromEntries(DATA.blocks.map(b=>[b.id,b.label]));
+  let html='<table><thead><tr><th>Série</th><th>Bloco</th><th>Último</th><th>Data</th>'
+    +'<th>z</th><th>Δ 12m</th><th>Base</th><th></th></tr></thead><tbody>';
+  DATA.series.forEach(s=>{
+    const zc=s.z==null?'':(s.z*s.orient>0?'pos':(s.z*s.orient<0?'neg':''));
+    const flag=s.stale?'<span class="chip alert">defasada</span>'
+      :(s.orient===0?'<span class="chip">ambígua</span>':'');
+    html+=`<tr>
+      <td>${s.name}<br><span class="muted" style="font-size:10.5px">SGS ${s.code} · ${s.unit}</span></td>
+      <td>${byBlock[s.block]||s.block}</td>
+      <td>${num(s.last.value)}</td>
+      <td>${dlabel(s.last.date)}</td>
+      <td class="${zc}">${s.z==null?'—':(s.z>0?'+':'')+num(s.z)}</td>
+      <td>${s.chg12m==null?'—':(s.chg12m>0?'+':'')+num(s.chg12m)+'%'}</td>
+      <td class="muted">${s.transform==='yoy'?'var. 12m':'nível'}</td>
+      <td>${flag}</td></tr>`;
+  });
+  $('#tbl').innerHTML=html+'</tbody></table>';
+}
+
+function renderAll(){ renderThermos(); renderChart(); renderTable(); }
+
+(async function init(){
+  try{
+    const r=await fetch('data/ciclo.json',{cache:'no-store'});
+    if(!r.ok) throw new Error('http '+r.status);
+    DATA=await r.json();
+  }catch(err){
+    if(window.__CICLO__) DATA=window.__CICLO__;
+    else{
+      $('#banner').hidden=false;
+      $('#banner').innerHTML='<strong>Sem dados ainda.</strong> O coletor de ciclo não gerou '
+        +'<code>data/ciclo.json</code>. Rode o job em Actions ou <code>python collector/ciclo.py</code>.';
+      return;
+    }
+  }
+  const stale=DATA.series.filter(s=>s.stale);
+  if(stale.length){
+    $('#banner').hidden=false;
+    $('#banner').innerHTML=`<strong>${stale.length} série(s) defasada(s):</strong> `
+      +stale.map(s=>`${s.name} (${s.lag_days} dias)`).join(' · ')
+      +' — excluída(s) do termômetro.';
+  }
+  $('#genInfo').textContent=`data/ciclo.json · ${DATA.series.length} séries · atualizado `
+    +(''+DATA.generated_at).slice(0,10);
+  zChart=echarts.init($('#zChart'));
+  renderAll();
+  addEventListener('resize',()=>zChart&&zChart.resize());
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',renderAll);
+  new MutationObserver(renderAll).observe(document.documentElement,
+    {attributes:true,attributeFilter:['data-theme']});
+})();
+</script>
+</body>
+</html>

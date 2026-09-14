@@ -54,6 +54,12 @@
     -webkit-font-smoothing:antialiased;margin:0}
   .wrap{max-width:1120px;margin:0 auto;padding:40px 22px 56px}
 
+  nav{display:flex;gap:4px;margin-bottom:28px;font-family:var(--mono);font-size:12px}
+  nav a{padding:6px 12px;border-radius:7px;text-decoration:none;color:var(--ink-2);
+    border:1px solid transparent}
+  nav a:hover{background:var(--surface-2);color:var(--ink)}
+  nav a[aria-current="page"]{background:var(--accent);color:#fff}
+
   .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
     color:var(--accent);margin:0 0 10px;font-weight:500}
   h1{font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:-.01em;margin:0;
@@ -161,6 +167,11 @@
 </head>
 <body>
 <div class="wrap">
+  <nav>
+    <a href="index.html" aria-current="page">Curva de juros</a>
+    <a href="ciclo.html">Painel de ciclo</a>
+  </nav>
+
   <p class="eyebrow">Renda fixa · Mercado de juros</p>
   <h1>Curva de Juros</h1>
   <p class="lede">Curva prefixada brasileira (ETTJ da ANBIMA — títulos públicos), taxa em % ao ano por vértice,

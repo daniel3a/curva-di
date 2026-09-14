@@ -226,6 +226,14 @@ def main() -> int:
     print("== importando B3 manual (b3-manual-inbox/) ==")
     b3_novos, b3_total = run_b3_manual()
     print(f"B3 manual: {b3_novos} novos | {b3_total} arquivados no total")
+
+    # painel de ciclo (BCB SGS) -- falha aqui nao pode derrubar a coleta de curva
+    try:
+        import ciclo
+
+        ciclo.main()
+    except Exception as err:  # noqa: BLE001
+        print(f"AVISO: painel de ciclo falhou: {err}")
     return 0
 
 
